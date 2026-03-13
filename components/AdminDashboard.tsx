@@ -705,7 +705,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, leads,
         // Let's assume we use the proposal ID and App.tsx will find it in localStorage.
 
         const baseUrl = window.location.origin;
-        return `${baseUrl}?proposal_id=${proposal.id}`;
+        return `${baseUrl}/proposta.html?proposal_id=${proposal.id}`;
     };
 
     const copyToClipboard = (text: string) => {

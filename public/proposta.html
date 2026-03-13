@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- Proposta Personalizada Meta Tags -->
+    <title>Sua Proposta Estratégica | Elizabeth Celina</title>
+    <meta name="description" content="Esta proposta é personalizada para você e é o primeiro passo da nossa parceria.">
+    
+    <!-- Open Graph / WhatsApp -->
+    <meta property="og:title" content="Proposta Estratégica | Elizabeth Celina">
+    <meta property="og:description" content="Esta proposta é personalizada para você e é o primeiro passo da nossa parceria.">
+    <meta property="og:image" content="https://elizabethcelina.vercel.app/proposta-banner.png">
+    <meta property="og:type" content="website">
+    
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Proposta Estratégica | Elizabeth Celina">
+    <meta name="twitter:description" content="Esta proposta é personalizada para você e é o primeiro passo da nossa parceria.">
+    <meta name="twitter:image" content="https://elizabethcelina.vercel.app/proposta-banner.png">
+
+    <style>
+        body { background: #001040; color: white; font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        .loader { border: 3px solid rgba(255,255,255,0.1); border-top: 3px solid #ccff00; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div style="text-align: center;">
+        <div class="loader" style="margin: 0 auto 20px;"></div>
+        <p>Carregando sua proposta exclusiva...</p>
+    </div>
+
+    <script>
+        // Redireciona para o app principal mantendo os parâmetros
+        const urlParams = new URLSearchParams(window.location.search);
+        const proposalId = urlParams.get('proposal_id');
+        if (proposalId) {
+            window.location.href = '/?proposal_id=' + proposalId;
+        } else {
+            window.location.href = '/';
+        }
+    </script>
+</body>
+</html>
