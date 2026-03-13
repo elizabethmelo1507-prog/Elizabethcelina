@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Mail, Phone, User, Briefcase, Send, CheckCircle2, ArrowRight, Loader2, Target, TrendingUp, DollarSign, AlertCircle } from 'lucide-react';
+import { Mail, Phone, User, Briefcase, Send, CheckCircle2, ArrowRight, Loader2, Target, TrendingUp, DollarSign, AlertCircle, Sparkles } from 'lucide-react';
 import { supabase } from '../services/supabase';
 
 export const PublicContactLead: React.FC = () => {
