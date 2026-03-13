@@ -1420,7 +1420,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, leads,
             nextSteps: newProposal.nextSteps,
             shareToken: Math.random().toString(36).substring(2, 15) // Generate a unique token
         };
-        setProposals([proposal, ...proposals]);
+        setProposals(prev => [proposal, ...prev]);
         setIsNewProposalModalOpen(false);
         setNewProposal(initialProposalState); // Reset form
         setTempBottleneck('');
@@ -3718,9 +3718,9 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido. Respeite esta estrutura e atribut
                                     <div className="p-3 bg-blue-500/10 rounded-xl text-blue-500">
                                         <Send size={24} />
                                     </div>
-                                    <span className="text-gray-400 text-sm font-bold uppercase">Enviadas (Mês)</span>
+                                    <span className="text-gray-400 text-sm font-bold uppercase">Enviadas (Total)</span>
                                 </div>
-                                <h3 className="text-4xl font-bold text-white">8</h3>
+                                <h3 className="text-4xl font-bold text-white">{proposals.filter(p => p.status === 'Enviada').length}</h3>
                             </div>
                             <div className="bg-white/5 border border-white/10 p-6 rounded-2xl">
                                 <div className="flex items-center gap-4 mb-2">
@@ -3729,16 +3729,16 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido. Respeite esta estrutura e atribut
                                     </div>
                                     <span className="text-gray-400 text-sm font-bold uppercase">Aprovadas</span>
                                 </div>
-                                <h3 className="text-4xl font-bold text-white">5</h3>
+                                <h3 className="text-4xl font-bold text-white">{proposals.filter(p => p.status === 'Aprovada').length}</h3>
                             </div>
                             <div className="bg-white/5 border border-white/10 p-6 rounded-2xl">
                                 <div className="flex items-center gap-4 mb-2">
                                     <div className="p-3 bg-yellow-500/10 rounded-xl text-yellow-500">
                                         <Clock size={24} />
                                     </div>
-                                    <span className="text-gray-400 text-sm font-bold uppercase">Em Negociação</span>
+                                    <span className="text-gray-400 text-sm font-bold uppercase">Rascunhos</span>
                                 </div>
-                                <h3 className="text-4xl font-bold text-white">3</h3>
+                                <h3 className="text-4xl font-bold text-white">{proposals.filter(p => p.status === 'Rascunho').length}</h3>
                             </div>
                         </div>
 
@@ -3838,7 +3838,7 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido. Respeite esta estrutura e atribut
                                             setProposals(prev => prev.map(p => p.id === proposal.id ? proposal : p));
                                         } else {
                                             localStorage.setItem('proposals_db', JSON.stringify([...currentProposals, proposal]));
-                                            setProposals([proposal, ...proposals]);
+                                            setProposals(prev => [proposal, ...prev]);
                                         }
 
                                         setNewProposal(initialProposalState);
@@ -4388,7 +4388,7 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido. Respeite esta estrutura e atribut
                                                 <button
                                                     onClick={() => {
                                                         const updated = { ...viewProposal, status: 'Aprovada' as const };
-                                                        setProposals(proposals.map(p => p.id === viewProposal.id ? updated : p));
+                                                        setProposals(prev => prev.map(p => p.id === viewProposal.id ? updated : p));
                                                         setViewProposal(updated);
 
                                                         // Persist to localStorage (syncs with public viewer)
