@@ -2427,7 +2427,7 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido. Respeite esta estrutura e atribut
                                 {/* Copiar Link de Contato */}
                                 <button
                                     onClick={() => {
-                                        const link = `${window.location.origin}/?contact=true`;
+                                        const link = `${window.location.origin}/contato.html`;
                                         navigator.clipboard.writeText(link);
                                         setPublicContactLinkCopied(true);
                                         setTimeout(() => setPublicContactLinkCopied(false), 2000);
