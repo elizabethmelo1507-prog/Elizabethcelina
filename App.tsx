@@ -17,6 +17,7 @@ import { PublicPaymentViewer } from './components/PublicPaymentViewer';
 import { ClientDataForm } from './components/ClientDataForm';
 import { PublicContractViewer } from './components/PublicContractViewer';
 import { PublicBriefingViewer } from './components/PublicBriefingViewer';
+import { PublicContactLead } from './components/PublicContactLead';
 import { Proposal } from './types';
 
 function App() {
@@ -29,6 +30,7 @@ function App() {
   const [publicPayment, setPublicPayment] = useState<any>(null);
   const [publicContract, setPublicContract] = useState<any>(null);
   const [publicBriefing, setPublicBriefing] = useState<any>(null);
+  const [showPublicContactForm, setShowPublicContactForm] = useState(false);
 
   useEffect(() => {
     if (introStage === 'drawing') {
@@ -53,6 +55,13 @@ function App() {
 
     // Check for admin query param
     const urlParams = new URLSearchParams(window.location.search);
+    
+    // Check for public contact lead form link
+    if (urlParams.get('contact') === 'true') {
+      setShowPublicContactForm(true);
+      setIntroStage('ready');
+    }
+
     if (urlParams.get('admin') === 'true') {
       setShowAdminLogin(true);
       setIntroStage('ready'); // Skip intro if admin
@@ -119,6 +128,12 @@ function App() {
       supabase.from('briefings').select('*').eq('id', briefingId).single().then(({ data, error }) => {
         if (data && !error) setPublicBriefing(data);
       });
+    }
+
+    // Check for public contact lead form link
+    if (urlParams.get('contact') === 'true') {
+      setShowPublicContactForm(true);
+      setIntroStage('ready');
     }
 
     const {
@@ -340,6 +355,11 @@ function App() {
         }}
       />
     );
+  }
+
+  // If viewing the public contact/lead form
+  if (showPublicContactForm) {
+    return <PublicContactLead />;
   }
 
   // If viewing a public proposal

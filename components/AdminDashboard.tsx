@@ -2163,15 +2163,23 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido. Respeite esta estrutura e atribut
         }
     };
 
-    // Calculando stats dinâmicos
-    const totalPipeline = leads.reduce((acc, curr) => acc + parseFloat(curr.value.replace('.', '')), 0);
+    // Calculando stats dinâmicos - Helper robusto para extrair números
+    const parseValue = (val: any) => {
+        if (!val) return 0;
+        const s = String(val);
+        const numeric = s.replace(/[^0-9,-]+/g, "").replace(",", ".");
+        const n = parseFloat(numeric);
+        return isNaN(n) ? 0 : n;
+    };
+
+    const totalPipeline = leads.reduce((acc, curr) => acc + parseValue(curr.value), 0);
     const totalLeads = leads.length;
 
     // Finance Stats
-    const totalRevenue = invoices.filter(i => i.status === 'Paga').reduce((acc, curr) => acc + parseFloat(curr.amount.replace('.', '')), 0);
-    const totalPending = invoices.filter(i => i.status !== 'Paga').reduce((acc, curr) => acc + parseFloat(curr.amount.replace('.', '')), 0);
-    const mrr = invoices.filter(i => i.type === 'Recorrente').reduce((acc, curr) => acc + parseFloat(curr.amount.replace('.', '')), 0);
-    const goalProgress = Math.min((totalRevenue / financialGoal) * 100, 100);
+    const totalRevenue = invoices.filter(i => i.status === 'Paga').reduce((acc, curr) => acc + parseValue(curr.amount), 0);
+    const totalPending = invoices.filter(i => i.status !== 'Paga').reduce((acc, curr) => acc + parseValue(curr.amount), 0);
+    const mrr = invoices.filter(i => i.type === 'Recorrente').reduce((acc, curr) => acc + parseValue(curr.amount), 0);
+    const goalProgress = Math.min((totalRevenue / 10000) * 100, 100); // Usando 10k como meta padrão se financialGoal não existir
 
     // CS Stats
     const activeClients = clients.filter(c => c.status === 'Ativo').length;
@@ -2394,6 +2402,82 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido. Respeite esta estrutura e atribut
                             </div>
                         </div>
 
+                        {/* AÇÕES RÁPIDAS */}
+                        <div className="mb-0">
+                            <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4 flex items-center gap-2">
+                                <Sparkles size={14} className="text-brand-lime" /> Ações Rápidas
+                            </h3>
+                            <div className="overflow-x-auto pb-2">
+                                <div className="flex gap-4 min-w-max pb-4">
+                                {/* Novo Lead Manual */}
+                                <button
+                                    onClick={() => setIsNewLeadModalOpen(true)}
+                                    className="bg-white/5 border border-white/10 p-4 rounded-2xl flex items-center gap-4 hover:border-brand-lime/30 hover:bg-white/[0.08] transition-all group text-left"
+                                >
+                                    <div className="p-3 bg-brand-lime/10 rounded-xl text-brand-lime group-hover:scale-110 transition-transform">
+                                        <UserPlus size={20} />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold text-sm text-white">Novo Lead</h4>
+                                        <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest">Entrada Manual</p>
+                                    </div>
+                                </button>
+
+                                {/* Copiar Link de Contato */}
+                                <button
+                                    onClick={() => {
+                                        const link = `${window.location.origin}/?contact=true`;
+                                        navigator.clipboard.writeText(link);
+                                        alert('Link de contato rápido copiado! Você pode enviar para o cliente agora.');
+                                    }}
+                                    className="bg-white/5 border border-white/10 p-4 rounded-2xl flex items-center gap-4 hover:border-brand-blue/30 hover:bg-white/[0.08] transition-all group text-left"
+                                >
+                                    <div className="p-3 bg-brand-blue/10 rounded-xl text-brand-blue group-hover:scale-110 transition-transform">
+                                        <Share2 size={20} />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold text-sm text-white">Link de Contato</h4>
+                                        <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest">Copiar para Enviar</p>
+                                    </div>
+                                </button>
+
+                                {/* Nova Proposta */}
+                                <button
+                                    onClick={() => {
+                                        setNewProposal({ title: '', client: '', value: '', validUntil: '', description: '', solution: '', scope: [], items: [] });
+                                        setIsNewProposalModalOpen(true);
+                                    }}
+                                    className="bg-white/5 border border-white/10 p-4 rounded-2xl flex items-center gap-4 hover:border-purple-500/30 hover:bg-white/[0.08] transition-all group text-left"
+                                >
+                                    <div className="p-3 bg-purple-500/10 rounded-xl text-purple-500 group-hover:scale-110 transition-transform">
+                                        <FileSignature size={20} />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold text-sm text-white">Proposta</h4>
+                                        <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest">Gerar Documento</p>
+                                    </div>
+                                </button>
+
+                                {/* Novo Contrato */}
+                                <button
+                                    onClick={() => {
+                                        setContractMode('new_lead');
+                                        setIsNewContractModalOpen(true);
+                                    }}
+                                    className="bg-white/5 border border-white/10 p-4 rounded-2xl flex items-center gap-4 hover:border-amber-500/30 hover:bg-white/[0.08] transition-all group text-left"
+                                >
+                                    <div className="p-3 bg-amber-500/10 rounded-xl text-amber-500 group-hover:scale-110 transition-transform">
+                                        <FileCheck size={20} />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold text-sm text-white">Contrato</h4>
+                                        <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest">Rascunho Rápido</p>
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                         {/* Notifications Panel */}
                         {isNotificationsOpen && (
                             <div className="bg-[#1a1a1c] border border-white/10 rounded-2xl p-4 absolute right-8 top-24 z-30 w-80 shadow-2xl animate-fadeIn">
@@ -2491,6 +2575,7 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido. Respeite esta estrutura e atribut
                                 </div>
                             </div>
                         )}
+
 
                         {/* KPIS */}
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -5284,7 +5369,7 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido. Respeite esta estrutura e atribut
                             </div>
                         )}
 
-                    </main >
+                    </main>
 
     {/* Contract Action Modal (Share or Open) */}
                 {
