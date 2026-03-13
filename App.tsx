@@ -431,6 +431,17 @@ function App() {
             fillSignature 1s 2.2s ease-in-out forwards;
         }
 
+        @media (max-width: 768px) {
+          .sig-text {
+            font-size: clamp(5rem, 15vw, 8rem);
+            stroke-width: 2px;
+          }
+          .sig-subtitle {
+            font-size: 22px;
+            letter-spacing: 0.15em;
+          }
+        }
+
         @keyframes drawSignature {
           100% { stroke-dashoffset: 0; }
         }
