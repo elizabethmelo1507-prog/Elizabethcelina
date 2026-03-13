@@ -439,6 +439,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, leads,
     const [activeTab, setActiveTab] = useState<'overview' | 'crm' | 'projects' | 'finance' | 'clients' | 'contracts' | 'onboarding' | 'proposals' | 'calendar' | 'briefings' | 'automations'>('overview');
     const [automationLeadId, setAutomationLeadId] = useState<string>('');
     const [automationClientId, setAutomationClientId] = useState<string>('');
+    const [publicContactLinkCopied, setPublicContactLinkCopied] = useState(false);
 
     // Calendar State
     const [calendarDate, setCalendarDate] = useState(new Date());
@@ -2428,16 +2429,17 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido. Respeite esta estrutura e atribut
                                     onClick={() => {
                                         const link = `${window.location.origin}/?contact=true`;
                                         navigator.clipboard.writeText(link);
-                                        alert('Link de contato rápido copiado! Você pode enviar para o cliente agora.');
+                                        setPublicContactLinkCopied(true);
+                                        setTimeout(() => setPublicContactLinkCopied(false), 2000);
                                     }}
-                                    className="bg-white/5 border border-white/10 p-4 rounded-2xl flex items-center gap-4 hover:border-brand-blue/30 hover:bg-white/[0.08] transition-all group text-left"
+                                    className={`bg-white/5 border p-4 rounded-2xl flex items-center gap-4 transition-all group text-left ${publicContactLinkCopied ? 'border-brand-lime bg-brand-lime/5' : 'border-white/10 hover:border-brand-blue/30 hover:bg-white/[0.08]'}`}
                                 >
-                                    <div className="p-3 bg-brand-blue/10 rounded-xl text-brand-blue group-hover:scale-110 transition-transform">
-                                        <Share2 size={20} />
+                                    <div className={`p-3 rounded-xl transition-transform group-hover:scale-110 ${publicContactLinkCopied ? 'bg-brand-lime/20 text-brand-lime' : 'bg-brand-blue/10 text-brand-blue'}`}>
+                                        {publicContactLinkCopied ? <Check size={20} /> : <Share2 size={20} />}
                                     </div>
                                     <div>
-                                        <h4 className="font-bold text-sm text-white">Link de Contato</h4>
-                                        <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest">Copiar para Enviar</p>
+                                        <h4 className="font-bold text-sm text-white">{publicContactLinkCopied ? 'Copiado!' : 'Link de Contato'}</h4>
+                                        <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest">{publicContactLinkCopied ? 'Pronto para enviar' : 'Copiar para Enviar'}</p>
                                     </div>
                                 </button>
 
