@@ -109,6 +109,7 @@ function App() {
 
     // Check for briefing public link
     const briefingId = urlParams.get('briefing_id');
+    const briefingLeadId = urlParams.get('lead_id');
     const briefingClientName = urlParams.get('client_name');
     const briefingCompanyName = urlParams.get('company_name');
     const briefingNiche = urlParams.get('niche');
@@ -116,6 +117,7 @@ function App() {
     if (briefingId === 'new') {
       setPublicBriefing({
         id: 'new',
+        lead_id: briefingLeadId,
         client_name: briefingClientName ? decodeURIComponent(briefingClientName) : 'Futuro Parceiro',
         status: 'pending',
         responses: {
@@ -206,6 +208,7 @@ function App() {
         niche: l.niche,
         revenue: l.revenue,
         growthGoal: l.growth_goal,
+        history: l.history || [],
         bottleneck: l.bottleneck,
         estimatedBudget: l.estimated_budget
       }));
@@ -277,6 +280,7 @@ function App() {
           if (id === 'new') {
             await supabase.from('briefings').insert({
               client_name: finalClientName,
+              lead_id: publicBriefing.lead_id,
               responses,
               maturity_score: score,
               status: 'completed',

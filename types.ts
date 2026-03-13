@@ -106,6 +106,8 @@ export interface Proposal {
   schedule?: { week: string; task: string }[];
   paymentTerms?: string;
   nextSteps?: string;
+  setupPrice?: number;
+  monthlyPrice?: number;
   shareToken?: string; // New field for public link 
 }
 

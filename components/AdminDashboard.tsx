@@ -685,6 +685,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, leads,
         title: '',
         client: '',
         value: '',
+        setupPrice: 0,
+        monthlyPrice: 0,
         items: [],
         context: { diagnosis: '', bottlenecks: [], impact: '', opportunity: '' },
         solution: { name: '', strategicDescription: '', whatWillBeBuilt: [], howItSolves: '', expectedImpact: '' },
@@ -1255,7 +1257,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, leads,
         // Build contract items: prefer scope items, fallback to proposal.items, then generic
         let contractItemsMapped: { description: string; price: string }[] = [];
 
-        if (proposal.scope && proposal.scope.length > 0) {
+        if (proposal.setupPrice || proposal.monthlyPrice) {
+            if (proposal.setupPrice) {
+                contractItemsMapped.push({
+                    description: `Investimento Inicial (Setup) - ${proposal.title}`,
+                    price: proposal.setupPrice.toFixed(2).replace('.', ',')
+                });
+            }
+            if (proposal.monthlyPrice) {
+                contractItemsMapped.push({
+                    description: `Investimento Mensal (Recorrente) - ${proposal.title}`,
+                    price: proposal.monthlyPrice.toFixed(2).replace('.', ',')
+                });
+            }
+        } else if (proposal.scope && proposal.scope.length > 0) {
             // Distribute total value across scope items
             const totalVal = parseFloat(proposal.value.replace(/[^0-9,.]/g, '').replace(',', '.')) || 0;
             const hasExplicitItems = proposal.items && proposal.items.length > 0;
@@ -1301,7 +1316,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, leads,
             endDate: proposal.validUntil
                 ? (() => { try { return new Date(proposal.validUntil.split('/').reverse().join('-')).toISOString().split('T')[0]; } catch { return ''; } })()
                 : '',
-            type: 'Projeto Único',
+            type: proposal.monthlyPrice ? 'Recorrente' : 'Projeto Único',
             // Map proposal financial/conditions fields
             paymentTerms: proposal.paymentTerms || prev.paymentTerms,
             // Keep defaults for fields not present in proposal
@@ -1648,6 +1663,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, leads,
             if (updates.growthGoal !== undefined) dbUpdates.growth_goal = updates.growthGoal;
             if (updates.bottleneck !== undefined) dbUpdates.bottleneck = updates.bottleneck;
             if (updates.estimatedBudget !== undefined) dbUpdates.estimated_budget = updates.estimatedBudget;
+            if (updates.history !== undefined) dbUpdates.history = updates.history;
 
             // Handle value (numeric conversion attempt)
             if (updates.value !== undefined) {
@@ -1721,6 +1737,8 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido. Respeite esta estrutura e atribut
 {
   "title": "Ecossistema Comercial - [Nome da Empresa da Análise]",
   "value": "9.997",
+  "setupPrice": 3000,
+  "monthlyPrice": 1500,
   "validUntil": "10/10/2026",
   "items": [{"description": "Serviço 1", "price": 4000}, {"description": "Serviço 2", "price": 5997}],
   "context": {
@@ -1759,6 +1777,8 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido. Respeite esta estrutura e atribut
                 title: parsedProposal.title || ('Proposta Estratégica - ' + briefing.client_name),
                 client: briefing.client_name,
                 value: parsedProposal.value || '10.000',
+                setupPrice: Number(parsedProposal.setupPrice) || 0,
+                monthlyPrice: Number(parsedProposal.monthlyPrice) || 0,
                 status: 'Rascunho',
                 date: new Date().toLocaleDateString('pt-BR'),
                 validUntil: parsedProposal.validUntil || '',
@@ -2446,7 +2466,7 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido. Respeite esta estrutura e atribut
                                 {/* Nova Proposta */}
                                 <button
                                     onClick={() => {
-                                        setNewProposal({ title: '', client: '', value: '', validUntil: '', description: '', solution: '', scope: [], items: [] });
+                                        setNewProposal(initialProposalState);
                                         setIsNewProposalModalOpen(true);
                                     }}
                                     className="bg-white/5 border border-white/10 p-4 rounded-2xl flex items-center gap-4 hover:border-purple-500/30 hover:bg-white/[0.08] transition-all group text-left"
@@ -3704,7 +3724,7 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido. Respeite esta estrutura e atribut
                                 <p className="text-gray-400">Crie e gerencie propostas enviadas aos seus leads e clientes.</p>
                             </div>
                             <button
-                                onClick={() => setIsNewProposalModalOpen(true)}
+                                onClick={() => { setNewProposal(initialProposalState); setIsNewProposalModalOpen(true); }}
                                 className="bg-brand-lime text-brand-black hover:bg-white font-bold px-6 py-3 rounded-xl flex items-center gap-2 transition-all shadow-lg shadow-brand-lime/20"
                             >
                                 <Plus size={20} /> Nova Proposta
@@ -3763,7 +3783,16 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido. Respeite esta estrutura e atribut
                                                 {proposal.title}
                                             </td>
                                             <td className="py-4 text-gray-300">{proposal.client}</td>
-                                            <td className="py-4 text-gray-300">R$ {proposal.value}</td>
+                                            <td className="py-4 text-gray-300">
+                                                {proposal.setupPrice || proposal.monthlyPrice ? (
+                                                    <div className="flex flex-col gap-0.5 leading-tight">
+                                                        {proposal.setupPrice ? <span className="text-[11px] font-bold text-white">S: {proposal.setupPrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span> : null}
+                                                        {proposal.monthlyPrice ? <span className="text-[11px] font-black text-brand-lime">M: {proposal.monthlyPrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span> : null}
+                                                    </div>
+                                                ) : (
+                                                    `R$ ${proposal.value}`
+                                                )}
+                                            </td>
                                             <td className="py-4 text-gray-400">{proposal.date}</td>
                                             <td className="py-4 text-gray-400">{proposal.validUntil}</td>
                                             <td className="py-4">
@@ -3817,6 +3846,8 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido. Respeite esta estrutura e atribut
                                             title: newProposal.title || 'Nova Proposta',
                                             client: newProposal.client || '',
                                             value: newProposal.value || '0,00',
+                                            setupPrice: Number(newProposal.setupPrice) || 0,
+                                            monthlyPrice: Number(newProposal.monthlyPrice) || 0,
                                             status: newProposal.status || 'Rascunho',
                                             date: newProposal.date || new Date().toLocaleDateString('pt-BR'),
                                             validUntil: newProposal.validUntil || new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toLocaleDateString('pt-BR'), // +15 days
@@ -3883,6 +3914,26 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido. Respeite esta estrutura e atribut
                                                     value={newProposal.value}
                                                     onChange={(e) => setNewProposal({ ...newProposal, value: e.target.value })}
                                                     placeholder="0,00"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-bold text-gray-500 mb-1">Valor Inicial (Setup) - R$</label>
+                                                <input
+                                                    type="number"
+                                                    className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:border-brand-lime focus:outline-none"
+                                                    value={newProposal.setupPrice}
+                                                    onChange={(e) => setNewProposal({ ...newProposal, setupPrice: Number(e.target.value) })}
+                                                    placeholder="0"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-bold text-gray-500 mb-1">Valor Mensal (Recorrente) - R$</label>
+                                                <input
+                                                    type="number"
+                                                    className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:border-brand-lime focus:outline-none"
+                                                    value={newProposal.monthlyPrice}
+                                                    onChange={(e) => setNewProposal({ ...newProposal, monthlyPrice: Number(e.target.value) })}
+                                                    placeholder="0"
                                                 />
                                             </div>
                                         </div>
@@ -5342,11 +5393,11 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido. Respeite esta estrutura e atribut
                                             {[
                                                 { label: 'Cobrança mensal', msg: (name: string) => `Olá ${name.split(' ')[0]}, tudo bem?\n\nPassando para lembrar do pagamento referente ao serviço deste mês.\n\nSegue o link de pagamento:\n[COLE_AQUI_O_LINK]` },
                                                 { label: 'Enviar boas-vindas', msg: (name: string) => `Olá ${name.split(' ')[0]}! Boas-vindas oficiais à Soluções Digitais & CX!\n\nEstamos muito animados para começar nosso projeto. Vamos marcar nosso Kickoff?` },
-                                                { label: 'Enviar análise comercial', msg: (name: string) => `Oi ${name.split(' ')[0]}, tudo bem?\n\nTudo certo com o seu contrato. O próximo passo é você preencher nossa Análise Comercial Estratégica para conhecermos a fundo o momento do seu negócio.\n\nLink do formulário:\n${window.location.origin}/?briefing_id=new` }
+                                                { label: 'Enviar análise comercial', msg: (name: string, lead?: Lead) => `Oi ${name.split(' ')[0]}, tudo bem?\n\nTudo certo com o seu contrato. O próximo passo é você preencher nossa Análise Comercial Estratégica para conhecermos a fundo o momento do seu negócio.\n\nLink do formulário:\n${window.location.origin}/?briefing_id=new${lead ? `&lead_id=${lead.id}&client_name=${encodeURIComponent(lead.name)}${lead.company ? `&company_name=${encodeURIComponent(lead.company)}` : ''}${lead.niche ? `&niche=${encodeURIComponent(lead.niche)}` : ''}${lead.email ? `&email=${encodeURIComponent(lead.email)}` : ''}` : ''}` }
                                             ].map(auto => {
                                                 const selectedClientForAuto = clients.find(c => c.id === automationClientId);
                                                 const tel = selectedClientForAuto?.phone ? selectedClientForAuto.phone.replace(/\D/g, '') : '';
-                                                const finalMsg = selectedClientForAuto ? auto.msg(selectedClientForAuto.name) : '';
+                                                const finalMsg = selectedClientForAuto ? auto.msg(selectedClientForAuto.name, selectedClientForAuto) : '';
 
                                                 return (
                                                     <a
@@ -6449,6 +6500,7 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido. Respeite esta estrutura e atribut
                                         onClick={() => {
                                             let link = `${window.location.origin}/?briefing_id=new`;
                                             if (selectedLeadForBriefingLink) {
+                                                link += `&lead_id=${selectedLeadForBriefingLink.id}`;
                                                 link += `&client_name=${encodeURIComponent(selectedLeadForBriefingLink.name)}`;
                                                 
                                                 const invalidCompanyNames = [

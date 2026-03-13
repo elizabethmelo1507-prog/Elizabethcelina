@@ -607,9 +607,33 @@ export const PublicProposalViewer: React.FC<PublicProposalViewerProps> = ({ prop
                         <div className="bg-brand-blue rounded-[2.5rem] p-12 md:p-20 text-center text-white relative overflow-hidden shadow-2xl">
                             <div className="absolute -right-20 -top-20 w-64 h-64 bg-brand-lime opacity-15 blur-[80px] pointer-events-none" />
                             <div className="relative z-10">
-                                <p className="text-xs uppercase tracking-[0.3em] text-white/50 font-bold mb-8">Investimento Total</p>
-                                <div className="inline-block bg-brand-lime px-10 py-5 rounded-2xl shadow-xl mb-6">
-                                    <span className="text-brand-blue text-4xl md:text-[5rem] font-black leading-none">R$ <AnimNum raw={proposal.value} /></span>
+                                <div className="flex flex-col md:flex-row items-center justify-center gap-8 md:gap-16 mb-8 mt-4">
+                                    {proposal.setupPrice ? (
+                                        <div className="text-center">
+                                            <p className="text-[10px] uppercase tracking-[0.3em] text-white/50 font-bold mb-4">Valor Inicial (Setup)</p>
+                                            <div className="bg-white/10 px-8 py-4 rounded-2xl border border-white/10 backdrop-blur-sm">
+                                                <span className="text-white text-3xl md:text-5xl font-black leading-none italic">R$ <AnimNum raw={proposal.setupPrice.toString()} /></span>
+                                            </div>
+                                        </div>
+                                    ) : null}
+
+                                    {proposal.monthlyPrice ? (
+                                        <div className="text-center">
+                                            <p className="text-[10px] uppercase tracking-[0.3em] text-white/50 font-bold mb-4">Valor Mensal (Recorrente)</p>
+                                            <div className="bg-brand-lime px-10 py-5 rounded-2xl shadow-[0_0_50px_rgba(204,255,0,0.2)]">
+                                                <span className="text-brand-blue text-3xl md:text-5xl font-black leading-none">R$ <AnimNum raw={proposal.monthlyPrice.toString()} /></span>
+                                            </div>
+                                        </div>
+                                    ) : null}
+
+                                    {!proposal.setupPrice && !proposal.monthlyPrice && (
+                                        <div className="text-center">
+                                            <p className="text-[10px] uppercase tracking-[0.3em] text-white/50 font-bold mb-8">Investimento Total</p>
+                                            <div className="inline-block bg-brand-lime px-10 py-5 rounded-2xl shadow-xl">
+                                                <span className="text-brand-blue text-4xl md:text-[5rem] font-black leading-none">R$ <AnimNum raw={proposal.value} /></span>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                                 {proposal.paymentTerms && (
                                     <p className="text-white/60 text-sm mt-4"><span className="text-white font-semibold">Condições: </span>{proposal.paymentTerms}</p>
