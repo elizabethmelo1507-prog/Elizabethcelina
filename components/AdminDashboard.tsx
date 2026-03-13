@@ -5388,7 +5388,7 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido. Respeite esta estrutura e atribut
                                                     <div className="space-y-2 text-sm text-gray-600">
                                                         <p className="flex items-center gap-2"><FileText size={14} className="text-brand-lime shrink-0" /> CPF: 042.122.602-12</p>
                                                         <p className="flex items-center gap-2"><MapPin size={14} className="text-brand-lime shrink-0" /> Manaus - AM</p>
-                                                        <p className="flex items-center gap-2"><Mail size={14} className="text-brand-lime shrink-0" /> contato@elizabethcelina.com</p>
+                                                        <p className="flex items-center gap-2"><Mail size={14} className="text-brand-lime shrink-0" /> elizabethcelina.comercial@gmail.com</p>
                                                     </div>
                                                 </div>
                                                 {/* Contratante */}

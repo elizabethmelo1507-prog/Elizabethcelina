@@ -80,13 +80,13 @@ export const Contact: React.FC<ContactProps> = ({ onNewLead, onOpenAdmin }) => {
                         </p>
 
                         <div className="space-y-6">
-                            <a href="mailto:contato@elizabethcelina.com" className="flex items-center gap-4 group">
+                            <a href="mailto:elizabethcelina.comercial@gmail.com" className="flex items-center gap-4 group">
                                 <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white group-hover:bg-brand-lime group-hover:text-brand-black transition-all">
                                     <Mail size={20} />
                                 </div>
                                 <div>
                                     <p className="text-xs text-gray-500 uppercase tracking-wider font-bold">Email</p>
-                                    <p className="text-white font-medium">contato@elizabethcelina.com</p>
+                                    <p className="text-white font-medium">elizabethcelina.comercial@gmail.com</p>
                                 </div>
                             </a>
 

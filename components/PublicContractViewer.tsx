@@ -487,7 +487,7 @@ export const PublicContractViewer: React.FC<Props> = ({ contract, onSign }) => {
                                     {[
                                         { icon: FileText, text: 'CPF: 042.122.602-12' },
                                         { icon: MapPin, text: 'Manaus – AM, Brasil' },
-                                        { icon: Mail, text: 'contato@elizabethcelina.com' },
+                                        { icon: Mail, text: 'elizabethcelina.comercial@gmail.com' },
                                     ].map(({ icon: Icon, text }) => (
                                         <p key={text} className="flex items-center gap-2.5 text-sm text-gray-600">
                                             <Icon size={13} className="text-brand-blue shrink-0" />{text}
