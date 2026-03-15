@@ -150,7 +150,7 @@ function AnimNum({ raw }: { raw: string }) {
             if (!start) start = ts;
             const p = Math.min((ts - start) / dur, 1);
             const e = 1 - Math.pow(1 - p, 5);
-            setVal(Math.floor(e * num).toLocaleString('pt-BR'));
+            setVal(Math.round(e * num).toLocaleString('pt-BR'));
             if (p < 1) requestAnimationFrame(step);
             else setVal(num.toLocaleString('pt-BR'));
         };
@@ -317,7 +317,7 @@ export const PublicProposalViewer: React.FC<PublicProposalViewerProps> = ({ prop
                             </div>
 
                             <div style={{ opacity: mounted ? 1 : 0, transform: mounted ? 'none' : 'translateY(20px)', transition: 'all 0.7s ease 0.1s' }}>
-                                <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tighter text-white mb-6 leading-[0.95]">
+                                <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tighter text-white mb-6 leading-[0.95]">
                                     Olá, {firstName}.<br />
                                     <span className="relative inline-block">
                                         Preparamos
@@ -331,7 +331,7 @@ export const PublicProposalViewer: React.FC<PublicProposalViewerProps> = ({ prop
                             </div>
 
                             <div style={{ opacity: mounted ? 1 : 0, transform: mounted ? 'none' : 'translateY(20px)', transition: 'all 0.7s ease 0.2s' }}>
-                                <p className="mt-2 md:mt-4 text-sm sm:text-lg md:text-xl text-white/80 max-w-lg mx-auto lg:mx-0 font-light leading-relaxed mb-8">
+                                <p className="mt-2 md:mt-4 text-sm sm:text-lg md:text-xl text-white/80 max-w-lg mx-auto lg:mx-0 font-light leading-relaxed mb-6 md:mb-8">
                                     Esta proposta foi desenvolvida exclusivamente para <strong className="text-white font-semibold">{proposal.client}</strong>. Cada detalhe foi pensado para transformar seu negócio.
                                 </p>
                             </div>
@@ -350,7 +350,7 @@ export const PublicProposalViewer: React.FC<PublicProposalViewerProps> = ({ prop
                         </div>
 
                         {/* Right: Countdown Card */}
-                        <div className="lg:w-1/2 relative w-full px-4 md:px-0 mt-8 lg:mt-0" style={{ opacity: mounted ? 1 : 0, transform: mounted ? 'none' : 'translateY(30px)', transition: 'all 0.8s ease 0.3s' }}>
+                        <div className="lg:w-1/2 relative w-full px-2 md:px-0 mt-4 lg:mt-0" style={{ opacity: mounted ? 1 : 0, transform: mounted ? 'none' : 'translateY(30px)', transition: 'all 0.8s ease 0.3s' }}>
                             <div className="relative max-w-sm md:max-w-md mx-auto">
                                 {/* Glow background */}
                                 <div className="absolute inset-0 bg-brand-lime rounded-full opacity-15 blur-3xl transform translate-x-8 translate-y-8 pointer-events-none" />
@@ -358,7 +358,7 @@ export const PublicProposalViewer: React.FC<PublicProposalViewerProps> = ({ prop
                                 {/* Card */}
                                 <div className="relative z-10 bg-white/[0.08] backdrop-blur-xl rounded-[2.5rem] p-8 md:p-10 border-2 border-white/[0.12] shadow-2xl">
                                     <div className="text-center">
-                                        <p className="text-[10px] uppercase tracking-[0.3em] text-white/40 font-bold mb-2">Proposta válida por</p>
+                                        <p className="text-[10px] uppercase tracking-[0.3em] text-white/40 font-bold mb-3 md:mb-2">Proposta válida por</p>
                                         <Countdown validUntil={proposal.validUntil} />
                                         <p className="text-[9px] text-white/20 uppercase tracking-[0.2em] mt-3 flex items-center justify-center gap-1.5"><Clock size={9} /> até {proposal.validUntil}</p>
 
