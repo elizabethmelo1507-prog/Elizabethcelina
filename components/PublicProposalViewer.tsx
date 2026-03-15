@@ -209,6 +209,22 @@ export const PublicProposalViewer: React.FC<PublicProposalViewerProps> = ({ prop
     const [introPhase, setIntroPhase] = useState<0 | 1 | 2 | 3 | 4>(0);
     const scrollY = useScrollY();
     const { h: wh } = useWindowSize();
+    
+    // Normalizes legacy "charm" prices from AI (e.g., 997 -> 1000, 2997 -> 3000)
+    const normalizePrice = (val: number | string | undefined): string => {
+        if (val === undefined || val === null) return '0';
+        const num = typeof val === 'string' ? parseFloat(val.replace(/\./g, '').replace(',', '.')) : val;
+        if (isNaN(num)) return '0';
+        
+        // If it ends in 97, 98, or 99, round up to the next 10 or 100
+        if (num > 10 && (num % 10 === 7 || num % 10 === 8 || num % 10 === 9)) {
+            return (Math.ceil(num / 10) * 10).toString();
+        }
+        if (num > 100 && (num % 100 >= 90)) {
+            return (Math.ceil(num / 100) * 100).toString();
+        }
+        return num.toString();
+    };
 
     const scrollProgress = typeof document !== 'undefined'
         ? Math.min(1, scrollY / (document.documentElement.scrollHeight - wh))
@@ -616,7 +632,7 @@ export const PublicProposalViewer: React.FC<PublicProposalViewerProps> = ({ prop
                                         <div className="text-center">
                                             <p className="text-[10px] uppercase tracking-[0.3em] text-white/50 font-bold mb-4">Valor Inicial (Setup)</p>
                                             <div className="bg-white/10 px-8 py-4 rounded-2xl border border-white/10 backdrop-blur-sm">
-                                                <span className="text-white text-3xl md:text-5xl font-black leading-none italic">R$ <AnimNum raw={proposal.setupPrice.toString()} /></span>
+                                                <span className="text-white text-3xl md:text-5xl font-black leading-none italic">R$ <AnimNum raw={normalizePrice(proposal.setupPrice)} /></span>
                                             </div>
                                         </div>
                                     ) : null}
@@ -625,7 +641,7 @@ export const PublicProposalViewer: React.FC<PublicProposalViewerProps> = ({ prop
                                         <div className="text-center">
                                             <p className="text-[10px] uppercase tracking-[0.3em] text-white/50 font-bold mb-4">Valor Mensal (Recorrente)</p>
                                             <div className="bg-brand-lime px-10 py-5 rounded-2xl shadow-[0_0_50px_rgba(204,255,0,0.2)]">
-                                                <span className="text-brand-blue text-3xl md:text-5xl font-black leading-none">R$ <AnimNum raw={proposal.monthlyPrice.toString()} /></span>
+                                                <span className="text-brand-blue text-3xl md:text-5xl font-black leading-none">R$ <AnimNum raw={normalizePrice(proposal.monthlyPrice)} /></span>
                                             </div>
                                         </div>
                                     ) : null}
@@ -634,7 +650,7 @@ export const PublicProposalViewer: React.FC<PublicProposalViewerProps> = ({ prop
                                         <div className="text-center">
                                             <p className="text-[10px] uppercase tracking-[0.3em] text-white/50 font-bold mb-8">Investimento Total</p>
                                             <div className="inline-block bg-brand-lime px-10 py-5 rounded-2xl shadow-xl">
-                                                <span className="text-brand-blue text-4xl md:text-[5rem] font-black leading-none">R$ <AnimNum raw={proposal.value} /></span>
+                                                <span className="text-brand-blue text-4xl md:text-[5rem] font-black leading-none">R$ <AnimNum raw={normalizePrice(proposal.value)} /></span>
                                             </div>
                                         </div>
                                     )}
@@ -714,7 +730,18 @@ export const PublicProposalViewer: React.FC<PublicProposalViewerProps> = ({ prop
             {/* ═══ ALL STYLES ═══ */}
             <style>{`
                 .ppv-root{min-height:100vh;background:#f5f5f5;color:#111;font-family:'Inter',sans-serif;overflow-x:hidden;-webkit-font-smoothing:antialiased}
-                @media (max-width: 640px) {
+                @media (max-width: 768px) {
+                    .ppv-root section {
+                        padding-top: 7rem !important;
+                        padding-bottom: 5rem !important;
+                    }
+                    .ppv-root section:first-of-type {
+                        padding-top: 8rem !important;
+                    }
+                    .ppv-root h2 {
+                        font-size: 1.85rem !important;
+                        line-height: 1.2 !important;
+                    }
                     .ppv-root h1 {
                         font-size: 2.25rem !important;
                         line-height: 1.1 !important;
