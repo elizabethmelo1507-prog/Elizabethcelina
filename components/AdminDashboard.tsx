@@ -600,85 +600,97 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, leads,
     const [isSigning, setIsSigning] = useState(false);
 
     // Proposals State
-    const [proposals, setProposals] = useState<Proposal[]>([
-        {
-            id: 1,
-            title: 'Gestão de Redes Sociais - Plano Gold',
-            client: 'Luxe Estate',
-            value: '5.000',
-            status: 'Enviada',
-            date: '15/05/2024',
-            validUntil: '30/05/2024',
-            items: [{ description: '12 posts/mês', price: 3000 }, { description: 'Gestão de Tráfego', price: 2000 }],
-            context: {
-                diagnosis: 'A imobiliária possui excelentes imóveis de alto padrão, mas a presença digital não reflete a exclusividade da marca.',
-                bottlenecks: ['Baixo engajamento no Instagram', 'Leads desqualificados vindos do site', 'Falta de automação no atendimento inicial'],
-                impact: 'Perda de oportunidades de venda devido à demora no primeiro contato e percepção de marca inferior à realidade.',
-                opportunity: 'Posicionar a Luxe Estate como autoridade absoluta no mercado de luxo digital.'
-            },
-            solution: {
-                name: 'Ecossistema Digital Premium',
-                strategicDescription: 'Uma reestruturação completa da presença online focada em percepção de valor e captação qualificada.',
-                whatWillBeBuilt: ['Novo feed harmônico', 'Campanhas de tráfego segmentadas por renda', 'Chatbot de pré-qualificação'],
-                howItSolves: 'Criando uma vitrine digital que atrai o público certo e um filtro automático que entrega apenas leads quentes ao comercial.',
-                expectedImpact: 'Aumento de 30% na taxa de conversão de leads e fortalecimento do branding.'
-            },
-            scope: [
-                'Planejamento de conteúdo mensal',
-                'Design e copy para 12 posts/mês',
-                'Gestão de tráfego pago (Meta Ads)',
-                'Relatório mensal de performance',
-                'Reunião de alinhamento quinzenal'
-            ],
-            schedule: [
-                { week: 'Semana 1', task: 'Onboarding e acesso às contas' },
-                { week: 'Semana 2', task: 'Definição da identidade visual e personas' },
-                { week: 'Semana 3', task: 'Produção do primeiro lote de conteúdo' },
-                { week: 'Semana 4', task: 'Início das postagens e campanhas' }
-            ],
-            paymentTerms: '50% na assinatura e 50% após 30 dias.',
-            nextSteps: 'Para avançar: assinatura do contrato digital + pagamento da primeira parcela.',
-            shareToken: 'abc123def456'
-        },
-        {
-            id: 2,
-            title: 'Desenvolvimento de Landing Page',
-            client: 'TechStart',
-            value: '3.500',
-            status: 'Rascunho',
-            date: '20/05/2024',
-            validUntil: '05/06/2024',
-            items: [{ description: 'Design e Desenvolvimento', price: 3500 }],
-            shareToken: 'ghi789jkl012'
-        }
-    ]);
+    const [proposals, setProposals] = useState<Proposal[]>([]);
     const [isNewProposalModalOpen, setIsNewProposalModalOpen] = useState(false);
 
-    // On mount: load proposals from localStorage and merge with initial hardcoded data
+    // Initial load: Fetch from Supabase
     useEffect(() => {
-        const stored = localStorage.getItem('proposals_db');
-        if (stored) {
-            try {
-                const lsProposals: Proposal[] = JSON.parse(stored);
-                setProposals(prev => {
-                    // Merge: localStorage takes priority for status/data
-                    const merged = [...prev];
-                    lsProposals.forEach(lsp => {
-                        const idx = merged.findIndex(p => p.id.toString() === lsp.id.toString());
-                        if (idx >= 0) {
-                            // Update existing proposal with localStorage data (status etc.)
-                            merged[idx] = { ...merged[idx], ...lsp };
-                        } else {
-                            // New proposal from localStorage — prepend it
-                            merged.unshift(lsp);
-                        }
-                    });
-                    // Sort by id descending (newest first)
-                    return merged.sort((a, b) => Number(b.id) - Number(a.id));
-                });
-            } catch (_) { }
-        }
+        fetchProposals();
     }, []);
+
+    const fetchProposals = async () => {
+        const { data, error } = await supabase
+            .from('proposals')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching proposals:', error);
+        } else {
+            // Map Supabase data (which might be in full_data) back to Proposal[]
+            const mapped: Proposal[] = data.map(dbProp => {
+                if (dbProp.full_data) {
+                    return { ...dbProp.full_data, id: dbProp.id };
+                }
+                // Fallback for legacy rows or partial data
+                return {
+                    id: dbProp.id,
+                    title: dbProp.title || 'Sem título',
+                    client: dbProp.company_name || 'N/A',
+                    value: dbProp.price?.toString() || '0',
+                    status: dbProp.status === 'approved' ? 'Aprovada' : 
+                            dbProp.status === 'rejected' ? 'Rejeitada' : 
+                            dbProp.status === 'sent' ? 'Enviada' : 'Rascunho',
+                    date: new Date(dbProp.created_at).toLocaleDateString('pt-BR'),
+                    validUntil: '', 
+                    items: []
+                };
+            });
+            setProposals(mapped);
+        }
+    };
+
+    const syncProposal = async (proposal: Proposal): Promise<Proposal> => {
+        const dbData = {
+            title: proposal.title,
+            company_name: proposal.client,
+            price: Number(proposal.value?.toString().replace(/\./g, '').replace(',', '.')) || 0,
+            status: proposal.status === 'Aprovada' ? 'approved' : 
+                    proposal.status === 'Rejeitada' ? 'rejected' : 
+                    proposal.status === 'Enviada' ? 'sent' : 'draft',
+            full_data: proposal
+        };
+
+        const isUUID = (id: any) => typeof id === 'string' && id.length > 20;
+
+        if (isUUID(proposal.id)) {
+            const { error } = await supabase
+                .from('proposals')
+                .update(dbData)
+                .eq('id', proposal.id);
+            if (error) console.error('Error updating proposal:', error);
+            return proposal;
+        } else {
+            const { data, error } = await supabase
+                .from('proposals')
+                .insert([dbData])
+                .select();
+            
+            if (error) {
+                console.error('Error inserting proposal:', error);
+                return proposal;
+            } else if (data && data[0]) {
+                const updated = { ...proposal, id: data[0].id };
+                setProposals(prev => prev.map(p => p.id === proposal.id ? updated : p));
+                return updated;
+            }
+            return proposal;
+        }
+    };
+
+    const deleteProposalFromDb = async (proposalId: string | number) => {
+        const isUUID = (id: any) => typeof id === 'string' && id.length > 20;
+        
+        if (isUUID(proposalId)) {
+            const { error } = await supabase
+                .from('proposals')
+                .delete()
+                .eq('id', proposalId);
+            if (error) console.error('Error deleting proposal:', error);
+        }
+        setProposals(prev => prev.filter(p => p.id !== proposalId));
+    };
+
 
     // Initial empty state for a new proposal
     const initialProposalState: Partial<Proposal> = {
@@ -700,14 +712,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, leads,
     const [viewProposal, setViewProposal] = useState<Proposal | null>(null);
 
     const generateShareLink = (proposal: Proposal) => {
-        // In a real app, this would be a backend call or a unique ID map. 
-        // For this prototype, we'll encode the ID or use the token if present.
-        const token = proposal.shareToken || btoa(JSON.stringify(proposal));
-        // fallback to full encoding if no token (for existing mocks) - though better to just use ID if we had a DB
-        // Let's assume we use the proposal ID and App.tsx will find it in localStorage.
-
         const baseUrl = window.location.origin;
-        return `${baseUrl}/proposta.html?proposal_id=${proposal.id}`;
+        return `${baseUrl}/?proposal_id=${proposal.id}`;
     };
 
     const copyToClipboard = (text: string) => {
@@ -762,27 +768,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, leads,
                 });
             }
 
-            // Sync proposals from localStorage (status updates + new proposals)
-            const storedProposals = localStorage.getItem('proposals_db');
-            if (storedProposals) {
-                const lpProposals: Proposal[] = JSON.parse(storedProposals);
-                setProposals(prev => {
-                    const merged = [...prev];
-                    lpProposals.forEach(lsp => {
-                        const idx = merged.findIndex(p => p.id.toString() === lsp.id.toString());
-                        if (idx >= 0) {
-                            // Update status if changed
-                            if (merged[idx].status !== lsp.status) {
-                                merged[idx] = { ...merged[idx], status: lsp.status };
-                            }
-                        } else {
-                            // New proposal not in state yet — add it
-                            merged.unshift(lsp);
-                        }
-                    });
-                    return merged.sort((a, b) => Number(b.id) - Number(a.id));
-                });
-            }
 
             // Sync clients from localStorage
             const storedClients = localStorage.getItem('ec_clients_db');
@@ -1792,11 +1777,7 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido. Respeite esta estrutura e atribut
             };
 
             setProposals(prev => [newProp, ...prev]);
-
-            const stored = localStorage.getItem('proposals_db') || '[]';
-            const all: Proposal[] = JSON.parse(stored);
-            all.unshift(newProp);
-            localStorage.setItem('proposals_db', JSON.stringify(all));
+            await syncProposal(newProp);
 
             alert("Proposta Estratégica gerada com base na análise comercial e enviada para a aba Propostas (como Rascunho)!");
             setActiveTab('proposals');
@@ -3810,9 +3791,7 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido. Respeite esta estrutura e atribut
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         if (confirm(`Excluir a proposta "${proposal.title}"? Esta ação não pode ser desfeita.`)) {
-                                                            setProposals(prev => prev.filter(p => p.id !== proposal.id));
-                                                            const stored: any[] = JSON.parse(localStorage.getItem('proposals_db') || '[]');
-                                                            localStorage.setItem('proposals_db', JSON.stringify(stored.filter((p: any) => p.id.toString() !== proposal.id.toString())));
+                                                            deleteProposalFromDb(proposal.id);
                                                         }
                                                     }}
                                                     className="text-gray-500 hover:text-red-400 transition-colors p-2 rounded-lg hover:bg-red-400/10"
@@ -3836,7 +3815,7 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido. Respeite esta estrutura e atribut
                                             <X size={24} />
                                         </button>
                                     </div>
-                                    <form onSubmit={(e) => {
+                                    <form onSubmit={async (e) => {
                                         e.preventDefault();
                                         const isEditing = !!newProposal.id;
                                         const finalId = newProposal.id || Date.now();
@@ -3861,16 +3840,12 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido. Respeite esta estrutura e atribut
                                             shareToken: newProposal.shareToken || Math.random().toString(36).substring(2, 15) // Unique token for sharing
                                         };
 
-                                        // Persist to local storage so the public link works on this machine
-                                        const currentProposals = JSON.parse(localStorage.getItem('proposals_db') || '[]');
-
                                         if (isEditing) {
-                                            localStorage.setItem('proposals_db', JSON.stringify(currentProposals.map((p: any) => p.id === proposal.id ? proposal : p)));
                                             setProposals(prev => prev.map(p => p.id === proposal.id ? proposal : p));
                                         } else {
-                                            localStorage.setItem('proposals_db', JSON.stringify([...currentProposals, proposal]));
                                             setProposals(prev => [proposal, ...prev]);
                                         }
+                                        await syncProposal(proposal);
 
                                         setNewProposal(initialProposalState);
                                         setIsNewProposalModalOpen(false);
@@ -4245,9 +4220,7 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido. Respeite esta estrutura e atribut
                                         title="Excluir proposta"
                                         onClick={() => {
                                             if (confirm(`Excluir a proposta "${viewProposal.title}"? Esta ação não pode ser desfeita.`)) {
-                                                setProposals(prev => prev.filter(p => p.id !== viewProposal.id));
-                                                const stored: any[] = JSON.parse(localStorage.getItem('proposals_db') || '[]');
-                                                localStorage.setItem('proposals_db', JSON.stringify(stored.filter((p: any) => p.id.toString() !== viewProposal.id.toString())));
+                                                deleteProposalFromDb(viewProposal.id);
                                                 setViewProposal(null);
                                             }
                                         }}
@@ -4393,19 +4366,9 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido. Respeite esta estrutura e atribut
 
                                     <div className="bg-gray-50 p-6 flex justify-between gap-4 border-t border-gray-200">
                                         <button
-                                            onClick={() => {
-                                                // Ensure the proposal is in localStorage before sharing
-                                                const currentStored: Proposal[] = JSON.parse(localStorage.getItem('proposals_db') || '[]');
-                                                const existsInStorage = currentStored.find(p => p.id.toString() === viewProposal.id.toString());
-                                                if (!existsInStorage) {
-                                                    // Save it so the public link will work
-                                                    localStorage.setItem('proposals_db', JSON.stringify([...currentStored, viewProposal]));
-                                                } else {
-                                                    // Update with latest data
-                                                    const updatedStored = currentStored.map(p => p.id.toString() === viewProposal.id.toString() ? viewProposal : p);
-                                                    localStorage.setItem('proposals_db', JSON.stringify(updatedStored));
-                                                }
-                                                copyToClipboard(generateShareLink(viewProposal));
+                                            onClick={async () => {
+                                                const synced = await syncProposal(viewProposal);
+                                                copyToClipboard(generateShareLink(synced));
                                             }}
                                             className="text-brand-lime hover:text-black hover:bg-brand-lime/10 px-4 py-2 rounded-lg transition-colors flex items-center gap-2 font-medium border border-brand-lime/20"
                                         >
@@ -4437,19 +4400,11 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido. Respeite esta estrutura e atribut
                                                 </button>
                                             ) : (
                                                 <button
-                                                    onClick={() => {
+                                                    onClick={async () => {
                                                         const updated = { ...viewProposal, status: 'Aprovada' as const };
                                                         setProposals(prev => prev.map(p => p.id === viewProposal.id ? updated : p));
                                                         setViewProposal(updated);
-
-                                                        // Persist to localStorage (syncs with public viewer)
-                                                        const storedArr: Proposal[] = JSON.parse(localStorage.getItem('proposals_db') || '[]');
-                                                        const updatedArr = storedArr.map(p => p.id.toString() === viewProposal.id.toString() ? updated : p);
-                                                        // If not in localStorage yet, add it
-                                                        if (!storedArr.find(p => p.id.toString() === viewProposal.id.toString())) {
-                                                            updatedArr.push(updated);
-                                                        }
-                                                        localStorage.setItem('proposals_db', JSON.stringify(updatedArr));
+                                                        await syncProposal(updated);
 
                                                         // Create admin notification
                                                         const existingNotifs = JSON.parse(localStorage.getItem('admin_notifications') || '[]');

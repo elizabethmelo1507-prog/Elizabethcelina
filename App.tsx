@@ -70,12 +70,26 @@ function App() {
     // Check for proposal public link
     const proposalId = urlParams.get('proposal_id');
     if (proposalId) {
-      const storedProposals = localStorage.getItem('proposals_db');
-      if (storedProposals) {
-        const proposals: Proposal[] = JSON.parse(storedProposals);
-        const found = proposals.find((p: any) => p.id.toString() === proposalId);
-        if (found) setPublicProposal(found);
-      }
+      supabase.from('proposals').select('*').eq('id', proposalId).single().then(({ data, error }) => {
+        if (!error && data) {
+          if (data.full_data) {
+            setPublicProposal({ ...data.full_data, id: data.id });
+          } else {
+            setPublicProposal({
+              id: data.id,
+              title: data.title || 'Sem título',
+              client: data.company_name || 'N/A',
+              value: data.price?.toString() || '0',
+              status: data.status === 'approved' ? 'Aprovada' : 
+                      data.status === 'rejected' ? 'Rejeitada' : 
+                      data.status === 'sent' ? 'Enviada' : 'Rascunho',
+              date: new Date(data.created_at).toLocaleDateString('pt-BR'),
+              validUntil: '', 
+              items: []
+            });
+          }
+        }
+      });
     }
 
     // Check for contract client data form link
@@ -371,27 +385,31 @@ function App() {
     return (
       <PublicProposalViewer
         proposal={publicProposal}
-        onApprove={(id) => {
-          // Build the fully approved proposal object using the full publicProposal data (all fields intact)
-          const approvedFull: Proposal = { ...publicProposal, status: 'Aprovada' as const };
+        onApprove={async (id) => {
+          const approvedFull: Proposal = { ...publicProposal!, status: 'Aprovada' as const };
+          
+          const dbData = {
+              status: 'approved',
+              full_data: approvedFull
+          };
 
-          // Persist to localStorage — merge with existing, preserving all fields from the full proposal
-          const stored = localStorage.getItem('proposals_db') || '[]';
-          const allProposals: Proposal[] = JSON.parse(stored);
-          const exists = allProposals.find(p => p.id.toString() === id.toString());
-          const updated = exists
-            ? allProposals.map((p: Proposal) =>
-              p.id.toString() === id.toString() ? { ...p, ...approvedFull } : p
-            )
-            : [...allProposals, approvedFull];
-          localStorage.setItem('proposals_db', JSON.stringify(updated));
+          const { error } = await supabase
+              .from('proposals')
+              .update(dbData)
+              .eq('id', id);
+
+          if (error) {
+              console.error('Error approving proposal:', error);
+          } else {
+              setPublicProposal(approvedFull);
+          }
 
           // Create admin notification
           const existingNotifs = JSON.parse(localStorage.getItem('admin_notifications') || '[]');
           existingNotifs.unshift({
             id: Date.now(),
             type: 'proposal_approved',
-            text: `🎉 ${publicProposal.client} aprovou a proposta "${publicProposal.title}"! Pronto para gerar o contrato.`,
+            text: `🎉 ${publicProposal!.client} aprovou a proposta "${publicProposal!.title}"! Pronto para gerar o contrato.`,
             time: 'Agora mesmo',
             read: false,
             proposalId: id
