@@ -152,7 +152,11 @@ function AnimNum({ raw }: { raw: string }) {
             const e = 1 - Math.pow(1 - p, 5);
             setVal(Math.round(e * num).toLocaleString('pt-BR'));
             if (p < 1) requestAnimationFrame(step);
-            else setVal(num.toLocaleString('pt-BR'));
+            else {
+                setVal(num.toLocaleString('pt-BR'));
+                // Safeguard: ensure it's exact after a tiny bit
+                setTimeout(() => setVal(num.toLocaleString('pt-BR')), 50);
+            }
         };
         requestAnimationFrame(step);
     }, [inView, num, raw]);
@@ -710,6 +714,16 @@ export const PublicProposalViewer: React.FC<PublicProposalViewerProps> = ({ prop
             {/* ═══ ALL STYLES ═══ */}
             <style>{`
                 .ppv-root{min-height:100vh;background:#f5f5f5;color:#111;font-family:'Inter',sans-serif;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+                @media (max-width: 640px) {
+                    .ppv-root h1 {
+                        font-size: 2.25rem !important;
+                        line-height: 1.1 !important;
+                        letter-spacing: -0.05em !important;
+                    }
+                    .ppv-root p {
+                        font-size: 0.875rem !important;
+                    }
+                }
                 .ppv-root ::selection{background:#ccff00;color:#0035C5}
 
                 .ppv-intro-bg{background:linear-gradient(160deg,#010a20 0%,#0035C5 40%,#001040 100%)}
@@ -778,9 +792,14 @@ export const PublicProposalViewer: React.FC<PublicProposalViewerProps> = ({ prop
                 @keyframes ppvFadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 
                 @media(max-width:768px){
-                    .ppv-countdown-cell{width:50px;height:56px}
-                    .ppv-price-tag{padding:12px 24px}
-                    .ppv-price-tag span{font-size:2.5rem !important}
+                    .ppv-countdown-cell{width:46px;height:52px}
+                    .ppv-countdown-cell span { font-size: 1.5rem !important; }
+                    .ppv-price-tag{padding:12px 20px}
+                    .ppv-price-tag span{font-size:2.2rem !important}
+                    .max-w-7xl.px-8.h-16 { padding-left: 1.5rem; padding-right: 1.5rem; }
+                }
+                @media(max-width:480px) {
+                    .ppv-price-tag span{font-size:1.8rem !important}
                 }
             `}</style>
         </div>

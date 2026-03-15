@@ -1721,11 +1721,11 @@ Seu papel é conectar os gargalos do cliente com as soluções da agência (Webs
 Retorne EXCLUSIVAMENTE um objeto JSON válido. Respeite esta estrutura e atributos:
 {
   "title": "Ecossistema Comercial - [Nome da Empresa da Análise]",
-  "value": "9.997",
+  "value": "10.000",
   "setupPrice": 3000,
-  "monthlyPrice": 1500,
-  "validUntil": "10/10/2026",
-  "items": [{"description": "Serviço 1", "price": 4000}, {"description": "Serviço 2", "price": 5997}],
+  "monthlyPrice": 1000,
+  "validUntil": "[Data em 15 dias]",
+  "items": [{"description": "Serviço 1", "price": 4000}, {"description": "Serviço 2", "price": 6000}],
   "context": {
     "diagnosis": "Diagnóstico contundente e claro do cenário do negócio baseado no que ele respondeu.",
     "bottlenecks": ["Gargalo 1", "Gargalo 2", "Gargalo 3"],
@@ -1743,7 +1743,7 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido. Respeite esta estrutura e atribut
   "schedule": [{"week": "Semana 1", "task": "Kick-off e Setup Técnico de Integrações"}],
   "paymentTerms": "50% de entrada (Aceite), 50% na aprovação final do projeto.",
   "nextSteps": "Assinatura digital do contrato para iniciarmos."
-}`;
+} `;
 
             const aiResponse = await sendMessageToOpenAI([], promptContext, sysInstruction);
 
