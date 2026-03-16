@@ -713,7 +713,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, leads,
 
     const generateShareLink = (proposal: Proposal) => {
         const baseUrl = window.location.origin;
-        return `${baseUrl}/?proposal_id=${proposal.id}`;
+        return `${baseUrl}/proposta.html?proposal_id=${proposal.id}`;
     };
 
     const copyToClipboard = (text: string) => {
