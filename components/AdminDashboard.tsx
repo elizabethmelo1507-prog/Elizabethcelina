@@ -1359,7 +1359,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, leads,
                 ? (() => { try { return new Date(matchedProposal.validUntil.split('/').reverse().join('-')).toISOString().split('T')[0]; } catch { return prev.endDate; } })()
                 : prev.endDate,
             // Map payment conditions from proposal
-            paymentTerms: matchedProposal?.paymentTerms || prev.paymentTerms,
+            paymentTerms: data.paymentPreference === 'unico' 
+                ? 'Pagamento Único (À Vista) integral antes do início dos serviços.'
+                : (matchedProposal?.paymentTerms || '50% no início e 50% na entrega final.'),
             lateFine: prev.lateFine,
             acceptanceDays: prev.acceptanceDays,
             excludedScope: prev.excludedScope,

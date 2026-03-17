@@ -97,7 +97,8 @@ export const ClientDataForm: React.FC<ClientDataFormProps> = ({ contractId, clie
         cep: '',
         address: '',
         city: '',
-        state: ''
+        state: '',
+        paymentPreference: 'unico' as 'unico' | 'parcelado'
     });
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -159,7 +160,7 @@ export const ClientDataForm: React.FC<ClientDataFormProps> = ({ contractId, clie
             existingNotifs.unshift({
                 id: Date.now(),
                 type: 'contract_data',
-                text: `✅ ${firstName} preencheu os dados pessoais — Contrato #${contractId} pronto para finalizar!`,
+                text: `✅ ${firstName} preencheu os dados e escolheu ${formData.paymentPreference === 'unico' ? 'Pagamento À Vista' : 'Parcelamento'} — Contrato #${contractId} pronto!`,
                 time: 'Agora mesmo',
                 read: false,
                 contractId
@@ -525,8 +526,51 @@ export const ClientDataForm: React.FC<ClientDataFormProps> = ({ contractId, clie
                             </div>
                         </Reveal>
 
-                        {/* ── LGPD Note ── */}
+                        {/* ── Bloco 4: Forma de Pagamento ── */}
                         <Reveal delay={150}>
+                            <div className="rounded-[2.5rem] bg-white border-2 border-white shadow-xl overflow-hidden hover:shadow-2xl transition-shadow duration-300">
+                                <div className="flex items-center gap-3 px-7 py-5 border-b border-gray-100">
+                                    <div className="w-9 h-9 rounded-xl bg-brand-blue flex items-center justify-center text-xs font-bold text-white shrink-0">04</div>
+                                    <div>
+                                        <p className="font-bold text-gray-700 text-sm">Forma de Pagamento</p>
+                                        <p className="text-[10px] text-gray-400">Escolha como prefere iniciar seu projeto</p>
+                                    </div>
+                                    <Sparkles size={16} className="text-brand-blue ml-auto" />
+                                </div>
+                                <div className="p-7 space-y-4">
+                                    <div
+                                        onClick={() => setFormData(prev => ({ ...prev, paymentPreference: 'unico' }))}
+                                        className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center gap-4 ${formData.paymentPreference === 'unico' ? 'border-brand-blue bg-brand-blue/5' : 'border-gray-100 hover:border-gray-200'}`}
+                                    >
+                                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${formData.paymentPreference === 'unico' ? 'border-brand-blue bg-brand-blue' : 'border-gray-300'}`}>
+                                            {formData.paymentPreference === 'unico' && <div className="w-2 h-2 rounded-full bg-white" />}
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="text-sm font-bold text-gray-700">Pagamento Único (À Vista)</p>
+                                            <p className="text-xs text-gray-500">Ideal para agilizar o início e garantir o cronograma.</p>
+                                        </div>
+                                        <CheckCircle size={18} className={formData.paymentPreference === 'unico' ? 'text-brand-blue' : 'text-gray-200'} />
+                                    </div>
+
+                                    <div
+                                        onClick={() => setFormData(prev => ({ ...prev, paymentPreference: 'parcelado' }))}
+                                        className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center gap-4 ${formData.paymentPreference === 'parcelado' ? 'border-brand-blue bg-brand-blue/5' : 'border-gray-100 hover:border-gray-200'}`}
+                                    >
+                                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${formData.paymentPreference === 'parcelado' ? 'border-brand-blue bg-brand-blue' : 'border-gray-300'}`}>
+                                            {formData.paymentPreference === 'parcelado' && <div className="w-2 h-2 rounded-full bg-white" />}
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="text-sm font-bold text-gray-700">Parcelamento em 2x (50/50)</p>
+                                            <p className="text-xs text-gray-500">50% de entrada + 50% após a conclusão do projeto.</p>
+                                        </div>
+                                        <Sparkles size={18} className={formData.paymentPreference === 'parcelado' ? 'text-brand-blue' : 'text-gray-200'} />
+                                    </div>
+                                </div>
+                            </div>
+                        </Reveal>
+
+                        {/* ── LGPD Note ── */}
+                        <Reveal delay={180}>
                             <div className="flex items-start gap-3 p-5 bg-brand-blue/5 border border-brand-blue/10 rounded-2xl">
                                 <Shield size={16} className="text-brand-blue mt-0.5 shrink-0" />
                                 <p className="text-xs text-gray-500 leading-relaxed">
