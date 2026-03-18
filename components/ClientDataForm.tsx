@@ -108,9 +108,11 @@ export const ClientDataForm: React.FC<ClientDataFormProps> = ({ contractId, clie
     const [cepLoading, setCepLoading] = useState(false);
     const [mounted, setMounted] = useState(false);
     const [introState, setIntroState] = useState<'entering' | 'visible' | 'text-leaving' | 'bg-leaving' | 'done'>('entering');
+    const [submitError, setSubmitError] = useState<string | null>(null);
     const scrollProgress = useScrollProgress();
 
-    const firstName = clientName.trim().split(' ')[0];
+    // Secure fallback for firstName
+    const firstName = (clientName || 'Cliente').trim().split(' ')[0];
 
     useEffect(() => {
         const existing = localStorage.getItem(`contract_client_data_${contractId}`);
@@ -125,10 +127,30 @@ export const ClientDataForm: React.FC<ClientDataFormProps> = ({ contractId, clie
         return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); };
     }, []);
 
+    // Helper for input masking
+    const maskValue = (val: string, type: 'cpf' | 'phone' | 'cep') => {
+        const numeric = val.replace(/\D/g, '');
+        if (type === 'cpf') {
+            if (numeric.length <= 11) {
+                return numeric.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4").substring(0, 14);
+            }
+            return numeric.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5").substring(0, 18);
+        }
+        if (type === 'phone') {
+            return numeric.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3").substring(0, 15);
+        }
+        if (type === 'cep') {
+            return numeric.replace(/(\d{5})(\d{3})/, "$1-$2").substring(0, 9);
+        }
+        return val;
+    };
+
     // Auto-fill address from CEP
-    const handleCepChange = async (cep: string) => {
-        const cleanCep = cep.replace(/\D/g, '');
-        setFormData(prev => ({ ...prev, cep }));
+    const handleCepChange = async (cepValue: string) => {
+        const masked = maskValue(cepValue, 'cep');
+        const cleanCep = masked.replace(/\D/g, '');
+        setFormData(prev => ({ ...prev, cep: masked }));
+        
         if (cleanCep.length === 8) {
             setCepLoading(true);
             try {
@@ -149,6 +171,26 @@ export const ClientDataForm: React.FC<ClientDataFormProps> = ({ contractId, clie
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setSubmitError(null);
+
+        // Validations
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.email)) {
+            setSubmitError("Por favor, insira um e-mail válido.");
+            return;
+        }
+
+        const cleanCpf = formData.cpf.replace(/\D/g, '');
+        if (cleanCpf.length < 11) {
+            setSubmitError("O CPF/CNPJ informado parece incompleto.");
+            return;
+        }
+
+        if (formData.paymentPreference === 'parcelado' && formData.installments < 2) {
+            setSubmitError("Para pagamento parcelado, selecione pelo menos 2 parcelas.");
+            return;
+        }
+
         setIsLoading(true);
 
         const submission = {
@@ -186,9 +228,9 @@ export const ClientDataForm: React.FC<ClientDataFormProps> = ({ contractId, clie
             localStorage.setItem('admin_notifications', JSON.stringify(existingNotifs));
 
             setIsSubmitted(true);
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error submitting form:', error);
-            alert('Erro ao enviar formulário. Por favor, tente novamente.');
+            setSubmitError(error.message || 'Ocorreu um erro ao enviar os dados. Por favor, tente novamente ou entre em contato pelo WhatsApp.');
         } finally {
             setIsLoading(false);
         }
@@ -413,7 +455,7 @@ export const ClientDataForm: React.FC<ClientDataFormProps> = ({ contractId, clie
                                                     placeholder="000.000.000-00"
                                                     className={inputWithIconClass}
                                                     value={formData.cpf}
-                                                    onChange={e => setFormData({ ...formData, cpf: e.target.value })}
+                                                    onChange={e => setFormData({ ...formData, cpf: maskValue(e.target.value, 'cpf') })}
                                                 />
                                             </div>
                                         </div>
@@ -456,7 +498,7 @@ export const ClientDataForm: React.FC<ClientDataFormProps> = ({ contractId, clie
                                                     placeholder="(00) 00000-0000"
                                                     className={inputWithIconClass}
                                                     value={formData.phone}
-                                                    onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                                                    onChange={e => setFormData({ ...formData, phone: maskValue(e.target.value, 'phone') })}
                                                 />
                                             </div>
                                         </div>
@@ -624,23 +666,31 @@ export const ClientDataForm: React.FC<ClientDataFormProps> = ({ contractId, clie
 
                         {/* ── Submit ── */}
                         <Reveal delay={180}>
-                            <button
-                                type="submit"
-                                disabled={isLoading}
-                                className="group relative w-full bg-brand-blue text-white font-bold py-5 rounded-full hover:bg-brand-lime hover:text-brand-blue transition-all duration-300 flex items-center justify-center gap-3 text-base shadow-xl hover:-translate-y-1 disabled:opacity-60 disabled:cursor-not-allowed overflow-hidden"
-                            >
-                                {isLoading ? (
-                                    <>
-                                        <Loader2 size={20} className="animate-spin" />
-                                        Enviando os dados...
-                                    </>
-                                ) : (
-                                    <>
-                                        Enviar Meus Dados
-                                        <div className="bg-white rounded-full p-1 group-hover:bg-brand-blue group-hover:text-white transition-colors"><ArrowRight size={14} /></div>
-                                    </>
+                            <div className="space-y-4">
+                                {submitError && (
+                                    <div className="p-4 bg-red-50 border border-red-200 rounded-2xl flex items-start gap-3 text-red-600 animate-fadeIn">
+                                        <div className="w-5 h-5 rounded-full bg-red-100 flex items-center justify-center shrink-0 mt-0.5">!</div>
+                                        <p className="text-xs font-medium leading-relaxed">{submitError}</p>
+                                    </div>
                                 )}
-                            </button>
+                                <button
+                                    type="submit"
+                                    disabled={isLoading}
+                                    className="group relative w-full bg-brand-blue text-white font-bold py-5 rounded-full hover:bg-brand-lime hover:text-brand-blue transition-all duration-300 flex items-center justify-center gap-3 text-base shadow-xl hover:-translate-y-1 disabled:opacity-60 disabled:cursor-not-allowed overflow-hidden"
+                                >
+                                    {isLoading ? (
+                                        <>
+                                            <Loader2 size={20} className="animate-spin" />
+                                            Enviando os dados...
+                                        </>
+                                    ) : (
+                                        <>
+                                            Enviar Meus Dados
+                                            <div className="bg-white rounded-full p-1 group-hover:bg-brand-blue group-hover:text-white transition-colors"><ArrowRight size={14} /></div>
+                                        </>
+                                    )}
+                                </button>
+                            </div>
                         </Reveal>
                     </form>
                 </div>
