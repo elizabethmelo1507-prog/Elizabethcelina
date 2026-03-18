@@ -1361,7 +1361,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, leads,
             // Map payment conditions from proposal
             paymentTerms: data.paymentPreference === 'unico' 
                 ? 'Pagamento de 100% do valor da proposta integral antes do início dos serviços.'
-                : (matchedProposal?.paymentTerms || 'Pagamento parcelado: 50% no início e 50% na entrega final.'),
+                : (matchedProposal?.paymentTerms || `Pagamento parcelado em ${data.installments || 1}x conforme cronograma de entrega.`),
             lateFine: prev.lateFine,
             acceptanceDays: prev.acceptanceDays,
             excludedScope: prev.excludedScope,

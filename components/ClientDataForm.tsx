@@ -98,7 +98,8 @@ export const ClientDataForm: React.FC<ClientDataFormProps> = ({ contractId, clie
         address: '',
         city: '',
         state: '',
-        paymentPreference: 'unico' as 'unico' | 'parcelado'
+        paymentPreference: 'unico' as 'unico' | 'parcelado',
+        installments: 1
     });
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -160,7 +161,7 @@ export const ClientDataForm: React.FC<ClientDataFormProps> = ({ contractId, clie
             existingNotifs.unshift({
                 id: Date.now(),
                 type: 'contract_data',
-                text: `✅ ${firstName} preencheu os dados e escolheu ${formData.paymentPreference === 'unico' ? 'Pagamento À Vista' : 'Parcelamento'} — Contrato #${contractId} pronto!`,
+                text: `✅ ${firstName} preencheu os dados e escolheu ${formData.paymentPreference === 'unico' ? 'Pagamento À Vista' : 'Parcelamento em ' + formData.installments + 'x'} — Contrato #${contractId} pronto!`,
                 time: 'Agora mesmo',
                 read: false,
                 contractId
@@ -554,16 +555,36 @@ export const ClientDataForm: React.FC<ClientDataFormProps> = ({ contractId, clie
 
                                     <div
                                         onClick={() => setFormData(prev => ({ ...prev, paymentPreference: 'parcelado' }))}
-                                        className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center gap-4 ${formData.paymentPreference === 'parcelado' ? 'border-brand-blue bg-brand-blue/5' : 'border-gray-100 hover:border-gray-200'}`}
+                                        className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col gap-4 ${formData.paymentPreference === 'parcelado' ? 'border-brand-blue bg-brand-blue/5' : 'border-gray-100 hover:border-gray-200'}`}
                                     >
-                                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${formData.paymentPreference === 'parcelado' ? 'border-brand-blue bg-brand-blue' : 'border-gray-300'}`}>
-                                            {formData.paymentPreference === 'parcelado' && <div className="w-2 h-2 rounded-full bg-white" />}
+                                        <div className="flex items-center gap-4">
+                                            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${formData.paymentPreference === 'parcelado' ? 'border-brand-blue bg-brand-blue' : 'border-gray-300'}`}>
+                                                {formData.paymentPreference === 'parcelado' && <div className="w-2 h-2 rounded-full bg-white" />}
+                                            </div>
+                                            <div className="flex-1">
+                                                <p className="text-sm font-bold text-gray-700">Pagamento Parcelado</p>
+                                                <p className="text-xs text-gray-500">Entrada + parcelas mensais (conforme proposta).</p>
+                                            </div>
+                                            <Sparkles size={18} className={formData.paymentPreference === 'parcelado' ? 'text-brand-blue' : 'text-gray-200'} />
                                         </div>
-                                        <div className="flex-1">
-                                            <p className="text-sm font-bold text-gray-700">Pagamento Parcelado</p>
-                                            <p className="text-xs text-gray-500">50% de entrada para início + 50% na entrega final (conforme proposta).</p>
-                                        </div>
-                                        <Sparkles size={18} className={formData.paymentPreference === 'parcelado' ? 'text-brand-blue' : 'text-gray-200'} />
+
+                                        {formData.paymentPreference === 'parcelado' && (
+                                            <div className="pt-3 border-t border-brand-blue/10 flex flex-col gap-3">
+                                                <p className="text-[10px] text-brand-blue font-bold uppercase tracking-widest">Número de Parcelas:</p>
+                                                <div className="flex gap-2">
+                                                    {[1, 2, 3].map(n => (
+                                                        <button
+                                                            key={n}
+                                                            type="button"
+                                                            onClick={(e) => { e.stopPropagation(); setFormData(prev => ({ ...prev, installments: n })); }}
+                                                            className={`flex-1 py-2 rounded-xl border-2 font-bold text-sm transition-all ${formData.installments === n ? 'border-brand-blue bg-brand-blue text-white' : 'border-gray-200 text-gray-400 hover:border-brand-blue/30'}`}
+                                                        >
+                                                            {n}x
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
