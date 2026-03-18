@@ -3,6 +3,7 @@ import {
     CheckCircle, User, FileText, MapPin, Cake, ArrowRight, Shield,
     Loader2, Phone, Mail, Hash, Sparkles, Lock
 } from 'lucide-react';
+import { supabase } from '../services/supabase';
 
 interface ClientDataFormProps {
     contractId: string;
@@ -146,17 +147,33 @@ export const ClientDataForm: React.FC<ClientDataFormProps> = ({ contractId, clie
         }
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
-        setTimeout(() => {
-            const submission = {
-                contractId,
-                clientName,
-                data: formData,
-                submittedAt: new Date().toISOString()
-            };
+
+        const submission = {
+            contractId,
+            clientName,
+            data: formData,
+            submittedAt: new Date().toISOString()
+        };
+
+        try {
+            // 1. Save to Supabase Notifications
+            const { error: notifError } = await supabase
+                .from('notifications')
+                .insert([{
+                    type: 'contract_data',
+                    text: `✅ ${firstName} preencheu os dados e escolheu ${formData.paymentPreference === 'unico' ? 'Pagamento À Vista' : 'Parcelamento em ' + formData.installments + 'x'} — Contrato #${contractId} pronto!`,
+                    contract_id: contractId,
+                    metadata: submission
+                }]);
+
+            if (notifError) throw notifError;
+
+            // 2. Legacy: Save to LocalStorage (still useful for local sessions)
             localStorage.setItem(`contract_client_data_${contractId}`, JSON.stringify(submission));
+            
             const existingNotifs = JSON.parse(localStorage.getItem('admin_notifications') || '[]');
             existingNotifs.unshift({
                 id: Date.now(),
@@ -167,9 +184,14 @@ export const ClientDataForm: React.FC<ClientDataFormProps> = ({ contractId, clie
                 contractId
             });
             localStorage.setItem('admin_notifications', JSON.stringify(existingNotifs));
-            setIsLoading(false);
+
             setIsSubmitted(true);
-        }, 1500);
+        } catch (error) {
+            console.error('Error submitting form:', error);
+            alert('Erro ao enviar formulário. Por favor, tente novamente.');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     // ── Already submitted ──

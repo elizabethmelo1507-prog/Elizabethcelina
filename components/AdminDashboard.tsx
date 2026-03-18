@@ -753,21 +753,51 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, leads,
     ]);
     const unreadCount = notifications.filter(n => !n.read).length;
 
-    // Poll localStorage every 5s for new notifications AND proposal status updates
+    // Poll Supabase and localStorage every 5s for new notifications
     useEffect(() => {
-        const checkUpdates = () => {
-            // Sync new notifications from localStorage
-            const stored = localStorage.getItem('admin_notifications');
-            if (stored) {
-                const storedNotifs = JSON.parse(stored);
+        const checkUpdates = async () => {
+            // 1. Sync from Supabase Notifications
+            const { data: dbNotifs, error } = await supabase
+                .from('notifications')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(20);
+
+            if (!error && dbNotifs) {
                 setNotifications(prev => {
-                    const prevIds = new Set(prev.map(n => n.id));
-                    const newOnes = storedNotifs.filter((n: any) => !prevIds.has(n.id));
-                    if (newOnes.length > 0) return [...newOnes, ...prev];
+                    const prevIds = new Set(prev.map(n => n.id.toString()));
+                    const newOnes = dbNotifs
+                        .filter(n => !prevIds.has(n.id.toString()))
+                        .map(n => ({
+                            id: n.id,
+                            type: n.type,
+                            text: n.text,
+                            time: new Date(n.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+                            read: n.read,
+                            contractId: n.contract_id,
+                            proposalId: n.proposal_id,
+                            metadata: n.metadata
+                        }));
+                    
+                    if (newOnes.length > 0) {
+                        // Merge and sort by ID (or date)
+                        return [...newOnes, ...prev].sort((a, b) => b.id > a.id ? 1 : -1).slice(0, 50);
+                    }
                     return prev;
                 });
             }
 
+            // 2. Sync new notifications from localStorage (Fallback/Legacy)
+            const stored = localStorage.getItem('admin_notifications');
+            if (stored) {
+                const storedNotifs = JSON.parse(stored);
+                setNotifications(prev => {
+                    const prevIds = new Set(prev.map(n => n.id.toString()));
+                    const newOnes = storedNotifs.filter((n: any) => !prevIds.has(n.id.toString()));
+                    if (newOnes.length > 0) return [...newOnes, ...prev];
+                    return prev;
+                });
+            }
 
             // Sync clients from localStorage
             const storedClients = localStorage.getItem('ec_clients_db');
@@ -1319,10 +1349,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, leads,
     };
 
     // Opens the new contract modal pre-filled with client personal data + approved proposal data
-    const handleOpenContractFromNotification = (contractId: string) => {
-        const stored = localStorage.getItem(`contract_client_data_${contractId}`);
-        if (!stored) return;
-        const { data, clientName } = JSON.parse(stored);
+    const handleOpenContractFromNotification = (contractId: string, notification?: any) => {
+        let submissionData = null;
+
+        // 1. Try to get from notification metadata (Supabase)
+        if (notification && notification.metadata) {
+            submissionData = notification.metadata;
+        } else {
+            // 2. Fallback to localStorage
+            const stored = localStorage.getItem(`contract_client_data_${contractId}`);
+            if (stored) {
+                submissionData = JSON.parse(stored);
+            }
+        }
+
+        if (!submissionData) {
+            alert('Dados do cliente não encontrados para este contrato.');
+            return;
+        }
+
+        const { data, clientName } = submissionData;
 
         // Find an approved proposal matching this client (case-insensitive partial match)
         const clientNameLower = (clientName || data.fullName || '').toLowerCase();
@@ -1333,9 +1379,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, leads,
         );
 
         // Build address string from form data
-        const addressStr = data.address
-            ? `${data.address}${data.city ? ', ' + data.city : ''}${data.state ? ' - ' + data.state : ''}`
-            : '';
+        const addressStr = data.street 
+            ? `${data.street}, ${data.number}${data.complement ? ' - ' + data.complement : ''}, ${data.neighborhood}, ${data.city}/${data.state}`
+            : (data.address || '');
 
         // Merge personal data + proposal data
         setNewContract(prev => ({
@@ -1343,7 +1389,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, leads,
             // Identity from client data form
             client: clientName || data.fullName,
             clientFullName: data.fullName || '',
-            clientCPF: data.cpf || '',
+            clientCPF: data.cpf || data.cnpj || '',
             clientDob: data.dob || '',
             clientPhone: data.phone || '',
             clientEmail: data.email || '',
@@ -1353,7 +1399,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, leads,
             clientState: data.state || '',
             // From the approved proposal (if found)
             title: matchedProposal ? matchedProposal.title : prev.title,
-            type: 'Projeto Único',
+            type: matchedProposal?.monthlyPrice ? 'Recorrente' : 'Projeto Único',
             startDate: new Date().toISOString().split('T')[0],
             endDate: matchedProposal?.validUntil
                 ? (() => { try { return new Date(matchedProposal.validUntil.split('/').reverse().join('-')).toISOString().split('T')[0]; } catch { return prev.endDate; } })()
@@ -1390,14 +1436,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, leads,
         }
 
         setContractMode('new_lead');
+        setViewProposal(null);
         setActiveTab('contracts');
         setIsNewContractModalOpen(true);
         setIsNotificationsOpen(false);
 
         // Mark notification as read
-        setNotifications(prev => prev.map(n =>
-            n.contractId === contractId ? { ...n, read: true } : n
-        ));
+        if (notification && notification.id) {
+            setNotifications(prev => prev.map(n => n.id === notification.id ? { ...n, read: true } : n));
+            if (typeof notification.id === 'string' && notification.id.length > 20) {
+                supabase.from('notifications').update({ read: true }).eq('id', notification.id).then();
+            }
+        }
     };
 
     const handleAddProposal = (e: React.FormEvent) => {
@@ -1558,9 +1608,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, leads,
     const getWhatsAppLink = (lead: Lead) => {
         // Generate a unique ID for this contract form session
         const contractId = `${Date.now()}_${String(lead.id || '').replace(/[^a-z0-9]/gi, '')}`;
-        const formUrl = `${window.location.origin}?contract_form=${contractId}&client=${encodeURIComponent(lead.name)}`;
+        // Use the manual name if it was edited, otherwise use lead name
+        const displayName = newContract.client || lead.name;
+        const formUrl = `${window.location.origin}?contract_form=${contractId}&client=${encodeURIComponent(displayName)}`;
 
-        const firstName = lead.name.split(' ')[0];
+        const firstName = displayName.split(' ')[0];
         const message = `Olá ${firstName}, tudo bem? 👋\n\nEstamos animados para trabalhar juntos! 🚀\n\nPara elaborarmos seu contrato de forma rápida e segura, preencha o formulário abaixo (leva menos de 1 minuto!):\n\n🔗 ${formUrl}\n\nAssim que você preencher, já preparo a minuta para assinatura digital!`;
 
         const phone = lead.phone ? lead.phone.replace(/\D/g, '') : '';
@@ -4388,10 +4440,15 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido. Respeite esta estrutura e atribut
                                                 <button
                                                     onClick={() => {
                                                         // Pre-fill contract from proposal, find matching lead for phone/email
-                                                        const matchedLead = leads.find(l =>
-                                                            l.name.toLowerCase().includes(viewProposal.client.toLowerCase().split(' ')[0]) ||
-                                                            viewProposal.client.toLowerCase().includes(l.name.toLowerCase().split(' ')[0])
-                                                        ) || null;
+                                                        // Enhanced matching logic
+                                                        const clientFirstPart = viewProposal.client.trim().split(' ')[0].toLowerCase();
+                                                        const matchedLead = leads.find(l => {
+                                                            const lName = l.name.toLowerCase();
+                                                            const vpClient = viewProposal.client.toLowerCase();
+                                                            return lName === vpClient ||
+                                                                lName.startsWith(clientFirstPart) ||
+                                                                vpClient.startsWith(lName.split(' ')[0]);
+                                                        }) || null;
                                                         setSelectedLeadForContract(matchedLead);
                                                         handleGenerateContractFromProposal(viewProposal);
                                                     }}
@@ -5855,7 +5912,7 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido. Respeite esta estrutura e atribut
                                                     Será enviado um link de formulário seguro para <span className="text-white font-bold">{selectedLeadForContract.name.split(' ')[0]}</span> preencher os dados pessoais. Quando ele preencher, você receberá uma notificação automática! 🔔
                                                 </p>
                                                 <div className="bg-black/30 rounded px-2 py-1 text-[10px] text-gray-500 font-mono mb-3 truncate">
-                                                    🔗 {window.location.origin}?contract_form=...&client={encodeURIComponent(selectedLeadForContract.name)}
+                                                    🔗 {window.location.origin}?contract_form=...&client={encodeURIComponent(newContract.client || (selectedLeadForContract ? selectedLeadForContract.name : ''))}
                                                 </div>
                                                 <a
                                                     href={getWhatsAppLink(selectedLeadForContract)}
