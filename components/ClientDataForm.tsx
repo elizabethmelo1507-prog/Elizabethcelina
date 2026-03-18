@@ -546,8 +546,8 @@ export const ClientDataForm: React.FC<ClientDataFormProps> = ({ contractId, clie
                                             {formData.paymentPreference === 'unico' && <div className="w-2 h-2 rounded-full bg-white" />}
                                         </div>
                                         <div className="flex-1">
-                                            <p className="text-sm font-bold text-gray-700">Pagamento Único (À Vista)</p>
-                                            <p className="text-xs text-gray-500">Ideal para agilizar o início e garantir o cronograma.</p>
+                                            <p className="text-sm font-bold text-gray-700">100% do Valor da Proposta</p>
+                                            <p className="text-xs text-gray-500">Pagamento integral antecipado para início imediato do projeto.</p>
                                         </div>
                                         <CheckCircle size={18} className={formData.paymentPreference === 'unico' ? 'text-brand-blue' : 'text-gray-200'} />
                                     </div>
@@ -560,8 +560,8 @@ export const ClientDataForm: React.FC<ClientDataFormProps> = ({ contractId, clie
                                             {formData.paymentPreference === 'parcelado' && <div className="w-2 h-2 rounded-full bg-white" />}
                                         </div>
                                         <div className="flex-1">
-                                            <p className="text-sm font-bold text-gray-700">Parcelamento em 2x (50/50)</p>
-                                            <p className="text-xs text-gray-500">50% de entrada + 50% após a conclusão do projeto.</p>
+                                            <p className="text-sm font-bold text-gray-700">Pagamento Parcelado</p>
+                                            <p className="text-xs text-gray-500">50% de entrada para início + 50% na entrega final (conforme proposta).</p>
                                         </div>
                                         <Sparkles size={18} className={formData.paymentPreference === 'parcelado' ? 'text-brand-blue' : 'text-gray-200'} />
                                     </div>
