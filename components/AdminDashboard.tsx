@@ -682,7 +682,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, leads,
             startDate: contract.startDate && contract.startDate.includes('/') ? contract.startDate.split('/').reverse().join('-') : (contract.startDate || ''),
             endDate: contract.endDate && contract.endDate.includes('/') ? contract.endDate.split('/').reverse().join('-') : (contract.endDate || ''),
         });
+        
+        // Ensure price is treated as a formatable value (number to string if needed, but calculateContractTotal will handle both)
         setContractItems(contract.items || []);
+        
         setContractMode('edit' as any);
         setIsNewContractModalOpen(true);
     };
@@ -1298,7 +1301,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, leads,
     };
 
     const calculateContractTotal = () => {
-        return contractItems.reduce((acc, item) => acc + (parseFloat(item.price.replace(',', '.')) || 0), 0);
+        return contractItems.reduce((acc, item) => {
+            const val = typeof item.price === 'string' 
+                ? parseFloat(item.price.replace(',', '.')) 
+                : item.price;
+            return acc + (val || 0);
+        }, 0);
     };
 
     const handleAddContract = async (e: React.FormEvent) => {
