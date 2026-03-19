@@ -102,12 +102,17 @@ function App() {
     // Check for public contract signing link
     const contractId = urlParams.get('contract_id');
     if (contractId) {
-      const storedContracts = localStorage.getItem('contracts_db');
-      if (storedContracts) {
-        const contracts: any[] = JSON.parse(storedContracts);
-        const found = contracts.find((c: any) => c.id.toString() === contractId);
-        if (found) setPublicContract(found);
-      }
+      supabase.from('contracts').select('*').eq('id', contractId).single().then(({ data, error }) => {
+        if (!error && data) {
+          const mapped = {
+            ...(data.full_data || {}),
+            id: data.id,
+            status: data.status,
+            signedDate: data.signed_date
+          };
+          setPublicContract(mapped);
+        }
+      });
     }
 
     // Check for public payment via Pix
@@ -346,20 +351,42 @@ function App() {
     return (
       <PublicContractViewer
         contract={publicContract}
-        onSign={(id) => {
-          // Persist signed status to localStorage
-          const stored = localStorage.getItem('contracts_db') || '[]';
-          const all: any[] = JSON.parse(stored);
+        onSign={async (id) => {
           const signedDate = new Date().toLocaleDateString('pt-BR');
-          const updated = all.map((c: any) =>
-            c.id.toString() === id.toString()
-              ? { ...c, status: 'Assinado', signedDate }
-              : c
-          );
-          localStorage.setItem('contracts_db', JSON.stringify(updated));
-          setPublicContract((prev: any) => prev ? { ...prev, status: 'Assinado', signedDate } : prev);
+          
+          // Update contract in Supabase
+          const { error: updateError } = await supabase
+            .from('contracts')
+            .update({ 
+               status: 'Assinado', 
+               signed_date: signedDate,
+               full_data: { ...publicContract, status: 'Assinado', signedDate } 
+            })
+            .eq('id', id);
 
-          // Admin notification
+          if (updateError) {
+             console.error('Error updating contract status:', updateError);
+          } else {
+             setPublicContract((prev: any) => prev ? { ...prev, status: 'Assinado', signedDate } : prev);
+          }
+
+          // Admin notification (Supabase)
+          const { error: notifError } = await supabase.from('notifications').insert({
+            type: 'contract_signed',
+            text: `✍️ ${publicContract.clientFullName || publicContract.client} assinou o contrato "${publicContract.title}" digitalmente!`,
+            read: false,
+            contract_id: id.toString(), // SET THE FIELD DIRECTLY
+            metadata: {
+               contract_id: id,
+               client_name: publicContract.clientFullName || publicContract.client,
+               contract_title: publicContract.title,
+               signed_at: new Date().toISOString()
+            }
+          });
+
+          if (notifError) console.error('Error creating signing notification:', notifError);
+
+          // Fallback for local view if needed (though dashboard now fetches from Supabase)
           const notifs = JSON.parse(localStorage.getItem('admin_notifications') || '[]');
           notifs.unshift({
             id: Date.now(),

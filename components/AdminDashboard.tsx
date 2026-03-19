@@ -76,7 +76,8 @@ import {
     Rocket,
     PlayCircle,
     CheckCircle,
-    Zap
+    Zap,
+    Edit
 } from 'lucide-react';
 import { sendMessageToOpenAI } from '../services/openaiService';
 import { supabase } from '../services/supabase';
@@ -495,7 +496,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, leads,
     const financialGoal = 100000;
 
     // Contracts State
-    const [contracts, setContracts] = useState<Contract[]>(initialContracts);
+    const [contracts, setContracts] = useState<Contract[]>([]);
     const [isNewContractModalOpen, setIsNewContractModalOpen] = useState(false);
     const [newContract, setNewContract] = useState({
         title: '',
@@ -606,7 +607,85 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, leads,
     // Initial load: Fetch from Supabase
     useEffect(() => {
         fetchProposals();
+        fetchContracts();
     }, []);
+
+    const fetchContracts = async () => {
+        const { data, error } = await supabase
+            .from('contracts')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching contracts:', error);
+        } else if (data) {
+            const mapped: Contract[] = data.map(dbContract => ({
+                ...(dbContract.full_data || {}),
+                id: dbContract.id,
+                status: dbContract.status as ContractStatus,
+                signedDate: dbContract.signed_date
+            }));
+            setContracts(mapped);
+        }
+    };
+
+    const syncContract = async (contract: Contract): Promise<Contract> => {
+        const dbData = {
+            title: contract.title,
+            client: contract.client,
+            client_full_name: contract.clientFullName,
+            value: contract.value,
+            status: contract.status,
+            signed_date: contract.signedDate,
+            full_data: contract
+        };
+
+        const isUUID = (id: any) => typeof id === 'string' && id.length > 20;
+
+        // Note: For contracts table, IDs are bigint/number from Supabase
+        // But since we use Date.now() for temp IDs, we check if it's "new" by looking at the magnitude or just let insert handle it if ID is not in DB
+        // Actually, we should check if the ID is a large number (Date.now) vs a serial ID.
+        // Serial IDs from Supabase are usually 1, 2, 3... while Date.now() is 17...
+        
+        const isTemporary = typeof contract.id === 'number' && contract.id > 1000000000000;
+
+        if (!isTemporary) {
+            const { error } = await supabase
+                .from('contracts')
+                .update(dbData)
+                .eq('id', contract.id);
+            if (error) console.error('Error updating contract:', error);
+            return contract;
+        } else {
+            // dbData already doesn't have the serial 'id' field, so we just insert it.
+            const { data, error } = await supabase
+                .from('contracts')
+                .insert([dbData])
+                .select();
+            
+            if (error) {
+                console.error('Error inserting contract:', error);
+                return contract;
+            } else if (data && data[0]) {
+                const updated = { ...contract, id: data[0].id };
+                setContracts(prev => prev.map(c => c.id === contract.id ? updated : c));
+                return updated;
+            }
+            return contract;
+        }
+    };
+
+    const handleEditContract = (contract: Contract) => {
+        setNewContract({
+            ...contract,
+            // Ensure dates are in YYYY-MM-DD for input[type=date]
+            startDate: contract.startDate && contract.startDate.includes('/') ? contract.startDate.split('/').reverse().join('-') : (contract.startDate || ''),
+            endDate: contract.endDate && contract.endDate.includes('/') ? contract.endDate.split('/').reverse().join('-') : (contract.endDate || ''),
+        });
+        setContractItems(contract.items || []);
+        setContractMode('edit' as any);
+        setIsNewContractModalOpen(true);
+    };
 
     const fetchProposals = async () => {
         const { data, error } = await supabase
@@ -1222,12 +1301,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, leads,
         return contractItems.reduce((acc, item) => acc + (parseFloat(item.price.replace(',', '.')) || 0), 0);
     };
 
-    const handleAddContract = (e: React.FormEvent) => {
+    const handleAddContract = async (e: React.FormEvent) => {
         e.preventDefault();
         const totalValue = calculateContractTotal();
 
         const contract: Contract = {
-            id: Date.now(),
+            id: (contractMode as any) === 'edit' ? newContract.id : Date.now(), // Temp ID if new
             title: newContract.title,
             client: newContract.client,
             clientFullName: newContract.clientFullName || newContract.client,
@@ -1247,14 +1326,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, leads,
             items: contractItems.map((item, idx) => ({
                 id: idx,
                 description: item.description,
-                price: parseFloat(item.price.replace(',', '.')) || 0
+                price: typeof item.price === 'string' ? (parseFloat(item.price.replace(',', '.')) || 0) : item.price
             })),
-            startDate: new Date(newContract.startDate).toLocaleDateString('pt-BR'),
-            endDate: new Date(newContract.endDate).toLocaleDateString('pt-BR'),
-            status: 'Rascunho',
+            startDate: newContract.startDate && !newContract.startDate.includes('/') ? new Date(newContract.startDate + 'T12:00:00').toLocaleDateString('pt-BR') : (newContract.startDate || ''),
+            endDate: newContract.endDate && !newContract.endDate.includes('/') ? new Date(newContract.endDate + 'T12:00:00').toLocaleDateString('pt-BR') : (newContract.endDate || ''),
+            status: (contractMode as any) === 'edit' ? (newContract.status || 'Rascunho') : 'Rascunho',
             type: newContract.type as 'Recorrente' | 'Projeto Único'
         };
-        setContracts([contract, ...contracts]);
+        
+        if ((contractMode as any) === 'edit') {
+            setContracts(prev => prev.map(c => c.id === contract.id ? contract : c));
+        } else {
+            setContracts([contract, ...contracts]);
+        }
+
         setIsNewContractModalOpen(false);
         setNewContract({
             title: '', client: '', clientFullName: '', clientCPF: '', clientAddress: '', clientDob: '',
@@ -1266,6 +1351,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, leads,
         });
         setContractItems([{ description: '', price: '' }]);
         setSelectedLeadForContract(null);
+
+        // Sync to Supabase
+        await syncContract(contract);
     };
 
     const handleGenerateContractFromProposal = (proposal: Proposal) => {
@@ -1540,29 +1628,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, leads,
         }, 1500);
     };
 
-    const handleShareContract = (contract: Contract) => {
-        // Persist contract to localStorage so the public viewer can access it
-        const storedContracts: Contract[] = JSON.parse(localStorage.getItem('contracts_db') || '[]');
-        const existsIdx = storedContracts.findIndex(c => c.id.toString() === contract.id.toString());
-        if (existsIdx >= 0) {
-            storedContracts[existsIdx] = contract;
-        } else {
-            storedContracts.push(contract);
-        }
-        localStorage.setItem('contracts_db', JSON.stringify(storedContracts));
+    const handleShareContract = async (contract: Contract) => {
+        // Ensure contract is synced to Supabase first (to get real ID if new)
+        const updatedContract = await syncContract(contract);
 
         // Build real share link
         const baseUrl = window.location.origin + window.location.pathname;
-        const shareLink = `${baseUrl}?contract_id=${contract.id}`;
+        const shareLink = `${baseUrl}?contract_id=${updatedContract.id}`;
 
         // Find client info for WhatsApp
-        const client = clients.find(c => c.name === contract.client) || leads.find(l => l.name === contract.client);
+        const client = clients.find(c => c.name === updatedContract.client) || leads.find(l => l.name === updatedContract.client);
         const phone = client?.phone?.replace(/\D/g, '') || '';
-        const firstName = contract.client.split(' ')[0];
+        const firstName = updatedContract.client.split(' ')[0];
 
         const message = encodeURIComponent(
             `Olá ${firstName}! 👋\n\n` +
-            `Seu contrato digital de *${contract.title}* está pronto para assinatura!\n\n` +
+            `Seu contrato digital de *${updatedContract.title}* está pronto para assinatura!\n\n` +
             `📄 Acesse aqui:\n${shareLink}\n\n` +
             `Leia com atenção e assine digitalmente com 1 clique. Qualquer dúvida estou à disposição! 🚀`
         );
@@ -1576,11 +1657,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, leads,
         setSelectedContractForAction(null);
     };
 
-    const handleDeleteContract = (id: number) => {
+    const handleDeleteContract = async (id: number | string) => {
         if (window.confirm("Tem certeza que deseja excluir este contrato? Esta ação não pode ser desfeita.")) {
-            const updatedContracts = contracts.filter(c => c.id !== id);
-            setContracts(updatedContracts);
+            setContracts(prev => prev.filter(c => c.id !== id));
             setSelectedContractForAction(null);
+
+            const { error } = await supabase.from('contracts').delete().eq('id', id);
+            if (error) console.error('Error deleting contract:', error);
         }
     };
 
@@ -2591,14 +2674,31 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido. Respeite esta estrutura e atribut
                                                 {n.text}
                                             </p>
                                             <div className="flex items-center justify-between">
-                                                <p className="text-[10px] text-gray-500">{n.time}</p>
                                                 <div className="flex items-center gap-2">
                                                     {n.type === 'contract_data' && (
                                                         <button
-                                                            onClick={() => handleOpenContractFromNotification(n.contractId as string)}
+                                                            onClick={() => handleOpenContractFromNotification(n.contractId as string, n)}
                                                             className="text-[10px] bg-brand-lime text-black font-bold px-2 py-0.5 rounded-full hover:bg-white transition-colors"
                                                         >
                                                             Abrir Contrato →
+                                                        </button>
+                                                    )}
+                                                    {n.type === 'contract_signed' && (
+                                                        <button
+                                                            onClick={() => {
+                                                                const contractId = n.contractId;
+                                                                const found = contracts.find(c => c.id.toString() === contractId?.toString());
+                                                                if (found) {
+                                                                    setViewDigitalContract(found);
+                                                                    setActiveTab('contracts');
+                                                                    setIsNotificationsOpen(false);
+                                                                } else {
+                                                                    alert('Contrato não encontrado ou ainda não carregado.');
+                                                                }
+                                                            }}
+                                                            className="text-[10px] bg-brand-lime text-black font-bold px-2 py-0.5 rounded-full hover:bg-white transition-colors"
+                                                        >
+                                                            Visualizar Contrato →
                                                         </button>
                                                     )}
                                                     {n.type === 'proposal_approved' && (
@@ -3376,27 +3476,39 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido. Respeite esta estrutura e atribut
                                         {contracts.map((contract) => (
                                             <tr
                                                 key={contract.id}
-                                                onClick={() => setSelectedContractForAction(contract)}
                                                 className="hover:bg-white/5 transition-colors cursor-pointer group"
                                             >
-                                                <td className="py-4 pl-4">
+                                                <td className="py-4 pl-4" onClick={() => setSelectedContractForAction(contract)}>
                                                     <p className="font-bold text-white group-hover:text-brand-lime transition-colors">{contract.title}</p>
                                                     <p className="text-xs text-gray-500">{contract.type}</p>
                                                 </td>
-                                                <td className="py-4 font-medium text-white">{contract.client}</td>
-                                                <td className="py-4 text-gray-300">R$ {contract.value}</td>
-                                                <td className="py-4 text-gray-400">
+                                                <td className="py-4 font-medium text-white" onClick={() => setSelectedContractForAction(contract)}>{contract.client}</td>
+                                                <td className="py-4 text-gray-300" onClick={() => setSelectedContractForAction(contract)}>R$ {contract.value}</td>
+                                                <td className="py-4 text-gray-400" onClick={() => setSelectedContractForAction(contract)}>
                                                     {contract.startDate} - {contract.endDate}
                                                 </td>
-                                                <td className="py-4">
+                                                <td className="py-4" onClick={() => setSelectedContractForAction(contract)}>
                                                     <span className={`px-2 py-1 rounded text-xs font-bold border ${getContractStatusColor(contract.status)}`}>
                                                         {contract.status}
                                                     </span>
                                                 </td>
                                                 <td className="py-4 text-right pr-4">
-                                                    <button className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors">
-                                                        <MoreHorizontal size={16} />
-                                                    </button>
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); handleEditContract(contract); }}
+                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-lime/10 hover:bg-brand-lime/20 rounded-lg text-brand-lime transition-all border border-brand-lime/20 text-xs font-bold"
+                                                            title="Editar Contrato"
+                                                        >
+                                                            <Edit size={14} />
+                                                            Editar
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); setSelectedContractForAction(contract); }}
+                                                            className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors"
+                                                        >
+                                                            <MoreHorizontal size={16} />
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))}
@@ -5513,9 +5625,15 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido. Respeite esta estrutura e atribut
                                                 </div>
                                                 <h1 className="text-2xl md:text-4xl font-bold leading-tight">Prestação de Serviços<br />Digitais & Consultoria</h1>
                                             </div>
-                                            <div className="text-right hidden md:block">
-                                                <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-1">Documento Nº</p>
-                                                <p className="font-mono text-white text-xl border border-white/20 px-3 py-1 rounded-lg">#{viewDigitalContract.id}</p>
+                                            <div className="flex flex-col items-end gap-3">
+                                                <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-1 hidden md:block">Documento Nº</p>
+                                                <p className="font-mono text-white text-xl border border-white/20 px-3 py-1 rounded-lg hidden md:block">#{viewDigitalContract.id}</p>
+                                                <button
+                                                    onClick={() => handleEditContract(viewDigitalContract)}
+                                                    className="flex items-center gap-2 bg-brand-lime text-brand-black px-4 py-2 rounded-xl font-bold text-xs hover:bg-white transition-all shadow-lg shadow-brand-lime/20"
+                                                >
+                                                    <Edit size={14} /> Editar Contrato
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
@@ -5831,30 +5949,34 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido. Respeite esta estrutura e atribut
                             {/* ... Content remains same ... */}
                             <div className="bg-[#0f0f11] border border-white/10 rounded-2xl w-full max-w-2xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
                                 <div className="flex justify-between items-center mb-6">
-                                    <h3 className="text-xl font-bold">Novo Contrato</h3>
+                                    <h3 className="text-xl font-bold">
+                                        {(contractMode as any) === 'edit' ? 'Editar Contrato' : 'Novo Contrato'}
+                                    </h3>
                                     <button onClick={() => setIsNewContractModalOpen(false)} className="text-gray-500 hover:text-white"><X size={20} /></button>
                                 </div>
 
                                 <form onSubmit={handleAddContract} className="space-y-6">
                                     {/* Contract Mode Toggle */}
-                                    <div className="grid grid-cols-2 gap-2 bg-white/5 p-1 rounded-lg border border-white/10">
-                                        <button
-                                            type="button"
-                                            onClick={() => handleContractModeChange('renewal')}
-                                            className={`flex items-center justify-center gap-2 py-2 rounded-md text-sm font-bold transition-all ${contractMode === 'renewal' ? 'bg-brand-lime text-brand-black' : 'text-gray-400 hover:text-white'
-                                                }`}
-                                        >
-                                            <RefreshCw size={14} /> Renovação
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => handleContractModeChange('new_lead')}
-                                            className={`flex items-center justify-center gap-2 py-2 rounded-md text-sm font-bold transition-all ${contractMode === 'new_lead' ? 'bg-brand-lime text-brand-black' : 'text-gray-400 hover:text-white'
-                                                }`}
-                                        >
-                                            <UserPlus size={14} /> Novo Lead
-                                        </button>
-                                    </div>
+                                    {(contractMode as any) !== 'edit' && (
+                                        <div className="grid grid-cols-2 gap-2 bg-white/5 p-1 rounded-lg border border-white/10">
+                                            <button
+                                                type="button"
+                                                onClick={() => handleContractModeChange('renewal')}
+                                                className={`flex items-center justify-center gap-2 py-2 rounded-md text-sm font-bold transition-all ${contractMode === 'renewal' ? 'bg-brand-lime text-brand-black' : 'text-gray-400 hover:text-white'
+                                                    }`}
+                                            >
+                                                <RefreshCw size={14} /> Renovação
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleContractModeChange('new_lead')}
+                                                className={`flex items-center justify-center gap-2 py-2 rounded-md text-sm font-bold transition-all ${contractMode === 'new_lead' ? 'bg-brand-lime text-brand-black' : 'text-gray-400 hover:text-white'
+                                                    }`}
+                                            >
+                                                <UserPlus size={14} /> Novo Lead
+                                            </button>
+                                        </div>
+                                    )}
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
@@ -6252,7 +6374,7 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido. Respeite esta estrutura e atribut
                                             type="submit"
                                             className="flex-1 py-3 rounded-lg bg-brand-lime text-brand-black font-bold hover:bg-white transition-colors"
                                         >
-                                            Salvar Contrato
+                                            {(contractMode as any) === 'edit' ? 'Salvar Alterações' : 'Salvar Contrato'}
                                         </button>
                                     </div>
                                 </form>
@@ -6691,7 +6813,7 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido. Respeite esta estrutura e atribut
                                     </button>
                                 </form>
                             </div>
-                        </div >
+                        </div>
                     )
                 }
 
@@ -6792,16 +6914,15 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido. Respeite esta estrutura e atribut
                                                 <button
                                                     type="submit"
                                                     className="bg-brand-lime text-black p-2 rounded-lg hover:bg-white transition-colors"
-                                                    disabled={!newTaskText.trim()}
                                                 >
-                                                    <Plus size={20} />
+                                                    <Plus size={18} />
                                                 </button>
                                             </form>
 
-                                            <div className="space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+                                            <div className="space-y-3">
                                                 {selectedProject.tasks && selectedProject.tasks.length > 0 ? (
-                                                    selectedProject.tasks.map(task => (
-                                                        <div key={task.id} className="flex items-center justify-between bg-black/20 p-3 rounded-lg border border-white/5 hover:border-white/10 transition-colors group">
+                                                    selectedProject.tasks.map((task) => (
+                                                        <div key={task.id} className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5 group transition-all hover:bg-white/10">
                                                             <div className="flex items-center gap-3">
                                                                 <button
                                                                     onClick={() => handleToggleProjectTask(task.id)}
@@ -6866,11 +6987,6 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido. Respeite esta estrutura e atribut
                     )
                 }
 
-                {/* Helper Icon for Footer */}
-            <div style={{ display: 'none' }}>
-                    <ShieldCheckIcon />
-                </div>
-
                 <style>{`
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
@@ -6901,25 +7017,6 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido. Respeite esta estrutura e atribut
             font-family: 'Georgia', serif;
         }
       `}</style>
-        </div >
+            </div>
     );
 };
-
-// Internal icon for the footer to avoid extra imports not listed
-const ShieldCheckIcon = (props: any) => (
-    <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="24"
-        height="24"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        {...props}
-    >
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10" />
-        <path d="m9 12 2 2 4-4" />
-    </svg>
-);

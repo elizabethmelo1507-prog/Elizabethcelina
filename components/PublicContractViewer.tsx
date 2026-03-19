@@ -164,12 +164,9 @@ export const PublicContractViewer: React.FC<Props> = ({ contract, onSign }) => {
     const scrollP = useScrollProgress();
 
     // Post-signature payment flow
-    const [paymentStep, setPaymentStep] = useState<'idle' | 'kickoff' | 'choose' | 'pix' | 'card' | 'done'>(
+    const [paymentStep, setPaymentStep] = useState<'idle' | 'choose' | 'pix' | 'card' | 'done'>(
         contract.status === 'Assinado' ? 'done' : 'idle'
     );
-    const [kickoffDate, setKickoffDate] = useState('');
-    const [kickoffTime, setKickoffTime] = useState('');
-    const [isSavingKickoff, setIsSavingKickoff] = useState(false);
     const [paymentMethod, setPaymentMethod] = useState<'pix' | 'card' | null>(null);
     const [isProcessingPayment, setIsProcessingPayment] = useState(false);
     const [pixAnimStep, setPixAnimStep] = useState<'idle' | 'copying' | 'copied'>('idle');
@@ -193,34 +190,11 @@ export const PublicContractViewer: React.FC<Props> = ({ contract, onSign }) => {
             onSign(contract.id);
             setHasSigned(true);
             setIsSigning(false);
-            // After signing, go to kickoff choice
-            setTimeout(() => setPaymentStep('kickoff'), 800);
+            // After signing, go directly to choose payment method (skipping kickoff meeting step)
+            setTimeout(() => setPaymentStep('choose'), 800);
         }, 1800);
     };
 
-    const handleSaveKickoff = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!kickoffDate || !kickoffTime) return;
-        setIsSavingKickoff(true);
-        try {
-            const { error } = await supabase.from('custom_events').insert({
-                title: `Kickoff: ${contract.clientFullName || contract.client} (${kickoffTime})`,
-                date: kickoffDate,
-                type: 'Reunião',
-                color: 'bg-brand-lime/20 text-brand-lime border-brand-lime/30',
-                time: kickoffTime,
-                client_name: contract.clientFullName || contract.client,
-                client_phone: contract.clientPhone || ''
-            });
-            if (error) throw error;
-            setIsSavingKickoff(false);
-            setPaymentStep('choose');
-        } catch (err: any) {
-            console.error('Erro ao salvar kickoff:', err);
-            setIsSavingKickoff(false);
-            alert('Não foi possível salvar a data. Tente novamente: ' + (err.message || String(err)));
-        }
-    };
 
     const handleChooseMethod = (method: 'pix' | 'card') => {
         savePendingInvoice(method);
@@ -252,6 +226,19 @@ export const PublicContractViewer: React.FC<Props> = ({ contract, onSign }) => {
                 clientPhone: contract.clientPhone || undefined,
             };
             localStorage.setItem('ec_pending_invoices', JSON.stringify([newInv, ...filteredExisting]));
+
+            // Sync to Supabase charges (for admin visibility)
+            const numericAmount = parseFloat(amount.replace(/[^0-9,.]/g, '').replace(/\./g, '').replace(',', '.'));
+            supabase.from('charges').insert({
+                id: String(newInv.id),
+                client_name: newInv.client,
+                amount: numericAmount,
+                status: 'Aguardando',
+                payment_method: method === 'pix' ? 'PIX' : 'Cartão',
+                external_reference: String(contract.id)
+            }).then(({ error }) => {
+                if (error) console.error('Error syncing charge to Supabase:', error);
+            });
 
             // Add new Onboarding process
             const existingOnboardings = JSON.parse(localStorage.getItem('ec_onboarding_processes') || '[]');
@@ -891,51 +878,6 @@ export const PublicContractViewer: React.FC<Props> = ({ contract, onSign }) => {
                             {hasSigned ? (
                                 /* ── SIGNED STATE: multi-step payment flow ── */
                                 <div>
-                                    {paymentStep === 'kickoff' && (
-                                        <div className="animate-fadeIn">
-                                            <div className="w-20 h-20 rounded-full bg-brand-lime/20 border-2 border-brand-lime mx-auto mb-7 flex items-center justify-center shadow-[0_0_50px_rgba(204,255,0,.35)]">
-                                                <Calendar size={38} className="text-brand-lime" strokeWidth={1.5} />
-                                            </div>
-                                            <Pill color="lime"><CheckCircle size={9} /> Contrato Assinado!</Pill>
-                                            <h2 className="text-3xl md:text-5xl font-black mt-5 mb-3 leading-tight">
-                                                Vamos agendar nosso<br /><span className="text-brand-lime">Kickoff.</span>
-                                            </h2>
-                                            <p className="text-white/50 text-sm mb-8 max-w-md mx-auto">
-                                                Escolha a data ideal para realizarmos nossa primeira reunião de alinhamento e darmos início imediato ao seu projeto.
-                                            </p>
-                                            <form onSubmit={handleSaveKickoff} className="max-w-xs mx-auto space-y-4 text-left">
-                                                <div className="flex gap-4">
-                                                    <div className="w-1/2">
-                                                        <label className="block text-sm font-medium text-gray-400 mb-2">Data</label>
-                                                        <input
-                                                            type="date"
-                                                            required
-                                                            value={kickoffDate}
-                                                            onChange={e => setKickoffDate(e.target.value)}
-                                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-lime/50 transition-colors calendar-picker-indicator-white"
-                                                        />
-                                                    </div>
-                                                    <div className="w-1/2">
-                                                        <label className="block text-sm font-medium text-gray-400 mb-2">Horário</label>
-                                                        <input
-                                                            type="time"
-                                                            required
-                                                            value={kickoffTime}
-                                                            onChange={e => setKickoffTime(e.target.value)}
-                                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-lime/50 transition-colors calendar-picker-indicator-white"
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <button
-                                                    type="submit"
-                                                    disabled={isSavingKickoff || !kickoffDate || !kickoffTime}
-                                                    className="w-full flex justify-center items-center gap-2 bg-brand-lime text-black font-bold py-3.5 rounded-xl hover:bg-white transition-colors disabled:opacity-50 mt-4"
-                                                >
-                                                    {isSavingKickoff ? <><Loader2 size={18} className="animate-spin" /> Salvando...</> : 'Confirmar e Prosseguir'}
-                                                </button>
-                                            </form>
-                                        </div>
-                                    )}
 
                                     {paymentStep === 'choose' && (
                                         <div>
